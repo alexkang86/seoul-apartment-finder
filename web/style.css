@@ -1,0 +1,183 @@
+/* ===== 밀림(숲) 테마 · 사용자 친화적 정돈 UI ===== */
+:root{
+  --green:#1c7d4d;        /* 메인 그린 */
+  --green-d:#0f5132;      /* 진한 그린 */
+  --gold:#b8860b;         /* 강조(가격 등) */
+  --line:rgba(20,80,50,.14);
+  --muted:#5b6b62;
+  --ink:#13241c;
+  --card:rgba(255,255,255,.94);
+  --panel:rgba(255,255,255,.90);
+  --shadow:0 6px 22px rgba(8,40,22,.18);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  color:var(--ink); line-height:1.55;
+  min-height:100vh;
+  /* 밀림 배경: 숲 사진 + 가벼운 녹색 오버레이(가독성). 사진 실패 시 background-color 폴백 */
+  background-color:#143a26;
+  background-image:
+    linear-gradient(180deg, rgba(8,30,18,.42), rgba(8,30,18,.60)),
+    url("https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=1600&q=55");
+  background-size:cover; background-position:center; background-attachment:fixed;
+}
+/* 중앙 정렬·여백으로 정돈 */
+header,.warn,.presets,.filters,.weights,.summary,#map,.cards,footer{
+  max-width:1180px; margin-left:auto; margin-right:auto;
+}
+
+/* ---- 헤더 ---- */
+header{
+  margin-top:18px; padding:18px 22px; border-radius:18px;
+  background:linear-gradient(135deg, rgba(15,81,50,.92), rgba(28,125,77,.86));
+  color:#fff; box-shadow:var(--shadow); backdrop-filter:blur(4px);
+}
+header h1{margin:0; font-size:21px; letter-spacing:-.3px}
+.updated{font-size:12.5px; opacity:.9; margin-top:4px}
+
+/* ---- 안내 배너 ---- */
+.warn{
+  margin-top:12px; padding:12px 16px; border-radius:14px; font-size:12.5px;
+  background:rgba(255,251,235,.95); border:1px solid #e6d39a; color:#6b5300;
+  box-shadow:var(--shadow);
+}
+
+/* ---- 프리셋 ---- */
+.presets{display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:14px; padding:0 2px}
+.presets .plabel{font-size:12.5px; color:#eafff2; font-weight:600; margin-right:2px; text-shadow:0 1px 3px rgba(0,0,0,.4)}
+.preset{
+  flex:none; background:rgba(255,255,255,.92); color:var(--green-d); border:0;
+  border-radius:999px; padding:8px 15px; font-size:13px; font-weight:700; cursor:pointer;
+  box-shadow:0 3px 10px rgba(8,40,22,.22); transition:transform .08s, background .15s;
+}
+.preset:hover{transform:translateY(-1px); background:#fff}
+.preset.ghost{background:transparent; color:#fff; border:1.5px solid rgba(255,255,255,.7)}
+
+/* ---- 필터 패널 ---- */
+.filters{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:12px;
+  margin-top:14px; padding:18px; border-radius:18px;
+  background:var(--panel); backdrop-filter:blur(6px); box-shadow:var(--shadow);
+}
+.f label{display:block; font-size:12px; color:var(--muted); margin-bottom:6px; font-weight:600}
+.f .row{display:flex; align-items:center; gap:8px}
+.f input,.f select{
+  width:100%; padding:9px 11px; border:1px solid var(--line); border-radius:10px;
+  font-size:14px; background:#fff; color:var(--ink); transition:border .15s, box-shadow .15s;
+}
+.f input:focus,.f select:focus{outline:0; border-color:var(--green); box-shadow:0 0 0 3px rgba(28,125,77,.15)}
+.f .row span{color:var(--muted)}
+/* 매매가 억/만원 입력 */
+.pricef{grid-column:1 / -1}
+.prow{display:flex; align-items:center; gap:12px; flex-wrap:wrap}
+.pg{display:flex; align-items:center; gap:6px}
+.pg input{width:90px; text-align:right}
+.pg i{font-style:normal; color:var(--muted); font-size:13.5px; font-weight:600}
+.ptilde{color:var(--muted); font-weight:700}
+.mini{
+  font-size:10.5px; padding:2px 8px; margin-left:4px; border:1px solid var(--green);
+  background:#fff; color:var(--green); border-radius:7px; cursor:pointer; font-weight:600;
+}
+.mini:hover{background:var(--green); color:#fff}
+.checks{display:flex; flex-direction:column; gap:8px; justify-content:center}
+.checks label{font-size:13px; color:var(--ink); display:flex; gap:7px; align-items:center; margin:0; font-weight:500}
+.checks input{width:auto}
+.btns{display:flex; gap:8px; align-items:flex-end}
+button{
+  flex:1; background:var(--green); color:#fff; border:0; border-radius:10px;
+  padding:11px; font-size:14px; font-weight:700; cursor:pointer; transition:background .15s, transform .08s;
+}
+button:hover{background:var(--green-d); transform:translateY(-1px)}
+button.ghost{background:#fff; color:var(--green); border:1.5px solid var(--green)}
+button.ghost:hover{background:#f0f9f3}
+
+/* ---- 가중치 ---- */
+.weights{
+  margin-top:12px; padding:6px 18px; border-radius:14px; font-size:13px;
+  background:var(--panel); backdrop-filter:blur(6px); box-shadow:var(--shadow);
+}
+.weights summary{cursor:pointer; color:var(--green-d); font-weight:700; padding:8px 0}
+.wgrid{display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px; padding:8px 0 12px}
+.wgrid label{display:flex; align-items:center; gap:8px; font-size:12.5px; font-weight:600; color:var(--ink)}
+.wgrid input[type=range]{flex:1; accent-color:var(--green)}
+.wgrid span{min-width:26px; text-align:right; color:var(--muted)}
+
+/* ---- 요약/뷰 토글 ---- */
+.summary{
+  margin-top:16px; padding:10px 16px; font-size:13.5px; border-radius:12px;
+  display:flex; justify-content:space-between; align-items:center;
+  background:rgba(255,255,255,.85); color:var(--ink); font-weight:600; box-shadow:0 3px 12px rgba(8,40,22,.15);
+}
+.viewtoggle{display:flex; border:1.5px solid var(--green); border-radius:9px; overflow:hidden}
+.vt{flex:none; background:#fff; color:var(--green); padding:6px 14px; font-size:13px; font-weight:700; border:0; cursor:pointer}
+.vt.active{background:var(--green); color:#fff}
+
+/* ---- 지도 ---- */
+#map{display:none; height:62vh; margin-top:14px; border-radius:16px; border:1px solid var(--line); z-index:1; box-shadow:var(--shadow)}
+.leaflet-popup-content{font-size:13px; line-height:1.6}
+.leaflet-popup-content b{color:var(--green-d)}
+.leaflet-popup-content a{color:var(--green); font-weight:600}
+
+/* ---- 카드 ---- */
+.cards{display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:14px; margin-top:16px; padding-bottom:28px}
+.more{grid-column:1/-1; text-align:center; color:#eafff2; font-size:13px; padding:12px; text-shadow:0 1px 3px rgba(0,0,0,.4)}
+.card{
+  background:var(--card); backdrop-filter:blur(6px); border:1px solid var(--line);
+  border-radius:16px; padding:16px 18px; box-shadow:var(--shadow);
+  transition:transform .1s, box-shadow .15s; position:relative;
+}
+.card:hover{transform:translateY(-3px); box-shadow:0 12px 28px rgba(8,40,22,.26)}
+.card .name{font-weight:800; font-size:16.5px; padding-right:64px; line-height:1.3}
+.card .name a{color:var(--ink); text-decoration:none}
+.card .name a:hover{color:var(--green)}
+.card .name a .ext{font-size:12px; color:var(--green); vertical-align:middle; margin-left:2px}
+.card .loc{color:var(--muted); font-size:12.5px; margin:4px 0 12px}
+
+/* 가격 강조 블록 */
+.kv{display:flex; justify-content:space-between; align-items:baseline; font-size:13.5px; padding:4px 0; border-top:1px dashed var(--line)}
+.kv:first-of-type{border-top:0}
+.kv span{color:var(--muted)}
+.kv b{font-weight:700}
+.price{color:var(--green-d); font-weight:800; font-size:17px}
+
+.badges{margin-top:12px; display:flex; flex-wrap:wrap; gap:6px}
+.badge{font-size:11px; padding:3px 9px; border-radius:999px; background:#e7f5ec; color:#15803d; font-weight:600}
+.badge.no{background:#fdecea; color:#c0392b}
+.score{
+  position:absolute; top:14px; right:16px;
+  background:linear-gradient(135deg,var(--green),var(--green-d)); color:#fff;
+  border-radius:9px; padding:3px 10px; font-size:12px; font-weight:700; box-shadow:0 2px 6px rgba(8,40,22,.3);
+}
+
+.refresh-banner{position:sticky; top:0; z-index:50; background:linear-gradient(135deg,#1c7d4d,#0f5132); color:#fff; text-align:center; padding:10px 14px; font-size:13.5px; font-weight:600; box-shadow:0 3px 12px rgba(8,40,22,.3)}
+.refresh-banner button{background:#fff; color:#0f5132; border:0; border-radius:8px; padding:5px 14px; font-weight:700; cursor:pointer; flex:none}
+footer{padding:20px 16px 28px; text-align:center; color:#dcefe2; font-size:11.5px; text-shadow:0 1px 3px rgba(0,0,0,.4)}
+
+/* ===== 모바일(폰) 대응 ===== */
+@media (max-width:560px){
+  body{background-attachment:scroll}  /* iOS에서 fixed 배경 버벅임 방지 */
+  header,.warn,.presets,.weights,.summary,#map,.cards,.filters,footer{margin-left:8px; margin-right:8px}
+  header{margin-top:10px; padding:14px 16px; border-radius:14px}
+  header h1{font-size:17px}
+  .updated{font-size:11px}
+  .warn{font-size:11.5px; padding:10px 12px}
+  .presets{gap:6px}
+  .preset{padding:7px 12px; font-size:12px}
+  .filters{grid-template-columns:1fr 1fr; gap:8px; padding:12px}
+  .f label{font-size:11px}
+  .f input,.f select{padding:8px; font-size:13.5px}
+  .pricef{grid-column:1 / -1}
+  .prow{gap:8px}
+  .pg input{width:56px}
+  .pg i{font-size:12px}
+  .checks,.btns{grid-column:1 / -1}
+  .wgrid{grid-template-columns:1fr 1fr}
+  .summary{flex-wrap:wrap; gap:8px}
+  .cards{grid-template-columns:1fr; gap:10px}
+  .card{padding:14px 16px}
+  .card .name{font-size:16px; padding-right:58px}
+  .price{font-size:16px}
+}
+code{background:rgba(255,255,255,.2); padding:2px 6px; border-radius:5px; color:#fff}

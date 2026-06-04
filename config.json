@@ -1,0 +1,11 @@
+{
+  "price_min_man": 40000,
+  "price_max_man": 55000,
+  "year_min": 2019,
+  "gap_ratio_min": 0.80,
+  "rooms_min": 3,
+  "baths_min": 1,
+  "up_only": true,
+  "school_required": true,
+  "gu": ["노원구","도봉구","구로구","금천구","중랑구","강서구","은평구"]
+}

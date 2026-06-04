@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#C0392B">
+<link rel="manifest" href="manifest.json">
+<title>🏠 서울·경기 아파트 후보 탐색기</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="style.css?v=11">
+</head>
+<body>
+<header>
+  <h1>🏠 서울·경기 아파트 후보 탐색기</h1>
+  <div class="updated" id="updated">데이터 로딩 중…</div>
+</header>
+
+<div class="warn">
+  ⚠️ <b>후보를 좁혀주는 보조 도구</b>입니다 — 국토부 <b>실거래가</b> 기반(실시간 매물 아님).
+  방/욕실은 면적 기반 <b>근사치</b>, 전세가율 90%+는 <b>깡통전세 위험</b> 주의.
+  최종 결정 전 <b>현장 확인·전문가 상담·대출 한도</b>를 꼭 확인하세요.
+</div>
+
+<!-- 프리셋 -->
+<div class="presets">
+  <span class="plabel">빠른 조건:</span>
+  <button class="preset" data-preset="balanced">신축 균형형</button>
+  <button class="preset" data-preset="gap">갭 우선(실거주)</button>
+  <button class="preset" data-preset="cheapnew">저가 신축형</button>
+  <button class="preset" data-preset="big">넓은집(방4)</button>
+  <button class="preset ghost" data-preset="reset">초기화</button>
+</div>
+
+<section class="filters">
+  <div class="f pricef"><label>매매가</label>
+    <div class="prow">
+      <span class="pg"><input type="number" id="priceMinEok" placeholder="0" min="0"><i>억</i><input type="number" id="priceMinMan" placeholder="0" min="0" max="9999" step="500"><i>만원</i></span>
+      <span class="ptilde">~</span>
+      <span class="pg"><input type="number" id="priceMaxEok" placeholder="0" min="0"><i>억</i><input type="number" id="priceMaxMan" placeholder="0" min="0" max="9999" step="500"><i>만원</i></span>
+    </div>
+    <input type="hidden" id="priceMin"><input type="hidden" id="priceMax">
+  </div>
+  <div class="f"><label>건축연도</label>
+    <div class="row"><input type="number" id="yearMin" placeholder="예 2019"><span>~</span><input type="number" id="yearMax" placeholder="예 2026"></div>
+  </div>
+  <div class="f"><label>전용면적(㎡) <button class="mini" data-area="59">59형</button><button class="mini" data-area="84">84형</button><button class="mini" data-area="0">전체</button></label>
+    <div class="row"><input type="number" id="areaMin" placeholder="최소"><span>~</span><input type="number" id="areaMax" placeholder="최대"></div>
+  </div>
+  <div class="f"><label>방 / 욕실 (최소)</label>
+    <div class="row"><input type="number" id="roomsMin" placeholder="방 ≥"><input type="number" id="bathsMin" placeholder="욕실 ≥"></div>
+  </div>
+  <div class="f"><label>전세가율 범위 (%)</label>
+    <div class="row"><input type="number" id="gapMin" placeholder="최소 예 75"><span>~</span><input type="number" id="gapMax" placeholder="상한 예 95"></div>
+  </div>
+  <div class="f"><label>최근 추세 ≥ (%)</label>
+    <input type="number" step="0.1" id="trendMin" placeholder="예 0 (상승세)">
+  </div>
+  <div class="f"><label>지역</label>
+    <select id="regionSel"><option value="">서울+경기 전체</option><option value="seoul">서울만</option><option value="gg">경기만</option></select>
+  </div>
+  <div class="f"><label>시/구</label><select id="guSel"><option value="">전체</option></select></div>
+  <div class="f checks">
+    <label><input type="checkbox" id="schoolReq"> 초품아(초등학교 ≥1)</label>
+    <label><input type="checkbox" id="hideRisk" checked> 깡통위험(전세가율 95%+) 숨김</label>
+  </div>
+  <div class="f"><label>정렬</label>
+    <select id="sortSel">
+      <option value="score">종합 점수순</option>
+      <option value="gap">전세가율 높은순</option>
+      <option value="trend">상승세 높은순</option>
+      <option value="price">매매가 낮은순</option>
+      <option value="year">신축순</option>
+    </select>
+  </div>
+  <div class="f btns">
+    <button id="apply">적용</button>
+    <button id="reset" class="ghost">초기화</button>
+  </div>
+</section>
+
+<!-- 점수 가중치 -->
+<details class="weights" id="weightsBox">
+  <summary>⚙️ 종합 점수 가중치 조절</summary>
+  <div class="wgrid">
+    <label>갭(전세가율) <input type="range" id="wGap" min="0" max="100" value="40"><span id="wGapV">40</span></label>
+    <label>신축 <input type="range" id="wNew" min="0" max="100" value="25"><span id="wNewV">25</span></label>
+    <label>상승세 <input type="range" id="wTrend" min="0" max="100" value="20"><span id="wTrendV">20</span></label>
+    <label>학교 <input type="range" id="wSchool" min="0" max="100" value="15"><span id="wSchoolV">15</span></label>
+  </div>
+</details>
+
+<div class="summary" id="summary">
+  <span id="summaryText"></span>
+  <span class="viewtoggle"><button id="viewCards" class="vt active">카드</button><button id="viewMap" class="vt">지도</button></span>
+</div>
+<div id="map"></div>
+<div class="cards" id="cards"></div>
+
+<footer>국토교통부 실거래가 기반 · 개인용 후보 탐색 · 갱신: <code>scripts/pipeline.py --gg</code></footer>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="app.js?v=11"></script>
+</body>
+</html>

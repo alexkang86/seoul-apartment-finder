@@ -1,0 +1,11 @@
+{
+  "name": "서울 아파트 후보 탐색기",
+  "short_name": "아파트탐색기",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#FFF8F6",
+  "theme_color": "#C0392B",
+  "icons": [
+    {"src": "icon.png", "sizes": "512x512", "type": "image/png"}
+  ]
+}
