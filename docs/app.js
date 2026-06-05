@@ -77,8 +77,8 @@ function cardHTML(a){
   const newish=a.built_year&&(2026-a.built_year)<=7, age=a.built_year?(2026-a.built_year)+"년차":"-";
   const risk=a.gap_ratio!=null&&a.gap_ratio>0.95;
   return `<span class="score">점수 ${score(a)}</span>
-   <div class="name"><a href="${naverUrl(a)}" target="_blank" rel="noopener" title="네이버페이 부동산에서 '${a.dong} ${a.name}' 매물·시세 검색">${a.name} <span class="ext">↗</span></a></div>
-   <div class="loc">${a.gu} ${a.dong} · ${a.built_year||"?"}년(${age}) · 전용 ${a.area_m2}㎡(${a.pyeong}평)</div>
+   <div class="name"><a href="${naverUrl(a)}" target="_blank" rel="noopener" title="네이버페이 부동산에서 '${a.dong} ${a.name}' 매물·시세 검색">${a.name} <span class="ext">↗</span></a><span class="ptag">${a.pyeong}평·${a.area_m2}㎡</span></div>
+   <div class="loc">${a.gu} ${a.dong} · ${a.built_year||"?"}년(${age})</div>
    <div class="kv"><span>매매가</span><b class="price">${won(a.trade_price_man)}</b></div>
    <div class="kv"><span>전세가</span><b>${won(a.jeonse_price_man)}</b></div>
    <div class="kv"><span>매매-전세 갭</span><b>${a.gap_man!=null?won(a.gap_man):"-"} ${a.gap_ratio!=null?`(전세가율 ${(a.gap_ratio*100).toFixed(0)}%)`:""}</b></div>
