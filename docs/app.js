@@ -77,7 +77,7 @@ function cardHTML(a){
   const newish=a.built_year&&(2026-a.built_year)<=7, age=a.built_year?(2026-a.built_year)+"년차":"-";
   const risk=a.gap_ratio!=null&&a.gap_ratio>0.95;
   return `<span class="score">점수 ${score(a)}</span>
-   <div class="name"><a href="${naverUrl(a)}" target="_blank" rel="noopener" title="네이버페이 부동산에서 '${a.dong} ${a.name}' 매물·시세 검색">${a.name} <span class="ext">↗</span></a><span class="ptag">${a.pyeong}평·${a.area_m2}㎡</span></div>
+   <div class="name"><a href="${naverUrl(a)}" target="_blank" rel="noopener" title="네이버페이 부동산에서 '${a.dong} ${a.name}' 매물·시세 검색">${a.name} <span class="ext">↗</span></a><span class="ptag">${a.pyeong}평·${a.area_m2}㎡</span>${a._variants>1?`<span class="vtag">외 ${a._variants-1}개 평형</span>`:""}</div>
    <div class="loc">${a.gu} ${a.dong} · ${a.built_year||"?"}년(${age})</div>
    <div class="kv"><span>매매가</span><b class="price">${won(a.trade_price_man)}</b></div>
    <div class="kv"><span>전세가</span><b>${won(a.jeonse_price_man)}</b></div>
@@ -119,11 +119,26 @@ function priceToFields(){
   set("priceMin","priceMinEok","priceMinMan");
   set("priceMax","priceMaxEok","priceMaxMan");
 }
+// 같은 단지(구·동·이름) 묶기: 정렬 순서상 첫 항목(=대표 평형) 유지 + 나머지 평형 수 집계
+function groupByComplex(rows){
+  const seen=new Map(), out=[];
+  for(const a of rows){
+    const k=a.gu+"|"+a.dong+"|"+a.name;
+    if(seen.has(k)){ seen.get(k)._variants++; continue; }
+    const it=Object.assign({}, a); it._variants=1; seen.set(k,it); out.push(it);
+  }
+  return out;
+}
 function render(){
   priceSync();
   saveState();
   let rows=sortRows(DATA.filter(passFilters));
-  $("summaryText").textContent=`조건 충족 ${rows.length.toLocaleString()}개 (전체 ${DATA.length.toLocaleString()}개 중)`;
+  const grouped=$("groupComplex").checked;
+  const total=rows.length;
+  if(grouped) rows=groupByComplex(rows);
+  $("summaryText").textContent = grouped
+    ? `단지 ${rows.length.toLocaleString()}곳 (조건 충족 평형 ${total.toLocaleString()}개 묶음)`
+    : `조건 충족 ${rows.length.toLocaleString()}개 (전체 ${DATA.length.toLocaleString()}개 중)`;
   const c=$("cards");c.innerHTML="";
   rows.slice(0,400).forEach(a=>{const e=document.createElement("div");e.className="card";e.innerHTML=cardHTML(a);c.appendChild(e);});
   if(rows.length>400){const e=document.createElement("div");e.className="more";e.textContent=`상위 400개만 표시 (조건을 좁히면 정확해집니다). 전체 ${rows.length.toLocaleString()}개`;c.appendChild(e);}
@@ -139,7 +154,7 @@ const PRESETS={
  big:{roomsMin:4,bathsMin:2,priceMax:60000,sort:"score",hideRisk:true},
 };
 const ALLF=["priceMin","priceMax","yearMin","yearMax","areaMin","areaMax","roomsMin","bathsMin","gapMin","gapMax","trendMin"];
-function clearAll(){ALLF.forEach(i=>$(i).value="");["priceMinEok","priceMinMan","priceMaxEok","priceMaxMan"].forEach(i=>$(i).value="");$("regionSel").value="";$("guSel").value="";$("schoolReq").checked=false;$("hideRisk").checked=true;$("sortSel").value="score";}
+function clearAll(){ALLF.forEach(i=>$(i).value="");["priceMinEok","priceMinMan","priceMaxEok","priceMaxMan"].forEach(i=>$(i).value="");$("regionSel").value="";$("guSel").value="";$("schoolReq").checked=false;$("hideRisk").checked=true;$("groupComplex").checked=true;$("sortSel").value="score";}
 function applyPreset(p){
   clearAll();
   if(p==="reset"){render();return;}
@@ -156,7 +171,7 @@ function applyPreset(p){
 // ---- 설정 저장/복원 ----
 function saveState(){
   const s={};ALLF.forEach(i=>s[i]=$(i).value);
-  s.region=$("regionSel").value;s.gu=$("guSel").value;s.school=$("schoolReq").checked;s.hide=$("hideRisk").checked;s.sort=$("sortSel").value;
+  s.region=$("regionSel").value;s.gu=$("guSel").value;s.school=$("schoolReq").checked;s.hide=$("hideRisk").checked;s.group=$("groupComplex").checked;s.sort=$("sortSel").value;
   s.w=[$("wGap").value,$("wNew").value,$("wTrend").value,$("wSchool").value];
   try{localStorage.setItem("aptFilters_v3",JSON.stringify(s));}catch(e){}
 }
@@ -165,7 +180,7 @@ function loadState(){
     ALLF.forEach(i=>{if(s[i]!=null)$(i).value=s[i];});
     priceToFields();
     if(s.region!=null)$("regionSel").value=s.region;if(s.gu!=null)$("guSel").value=s.gu;
-    $("schoolReq").checked=!!s.school;if(s.hide!=null)$("hideRisk").checked=s.hide;if(s.sort)$("sortSel").value=s.sort;
+    $("schoolReq").checked=!!s.school;if(s.hide!=null)$("hideRisk").checked=s.hide;if(s.group!=null)$("groupComplex").checked=s.group;if(s.sort)$("sortSel").value=s.sort;
     if(s.w){["wGap","wNew","wTrend","wSchool"].forEach((id,i)=>{$(id).value=s.w[i];syncW();});}
   }catch(e){}
 }
@@ -214,7 +229,7 @@ function showRefreshBanner(){
   $("rbReload").onclick=()=>location.reload();
 }
 
-$("apply").onclick=render;$("reset").onclick=()=>applyPreset("reset");$("sortSel").onchange=render;
+$("apply").onclick=render;$("reset").onclick=()=>applyPreset("reset");$("sortSel").onchange=render;$("groupComplex").onchange=render;
 document.querySelectorAll(".preset").forEach(b=>b.onclick=()=>applyPreset(b.dataset.preset));
 document.querySelectorAll(".mini").forEach(b=>b.onclick=()=>{const a=+b.dataset.area;if(a===59){$("areaMin").value=55;$("areaMax").value=66;}else if(a===84){$("areaMin").value=78;$("areaMax").value=100;}else{$("areaMin").value="";$("areaMax").value="";}render();});
 ["wGap","wNew","wTrend","wSchool"].forEach(id=>$(id).oninput=()=>{syncW();render();});
