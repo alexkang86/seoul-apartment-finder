@@ -147,6 +147,7 @@ button.ghost:hover{background:#f0f9f3}
 .badges{margin-top:12px; display:flex; flex-wrap:wrap; gap:6px}
 .badge{font-size:11px; padding:3px 9px; border-radius:999px; background:#e7f5ec; color:#15803d; font-weight:600}
 .badge.no{background:#fdecea; color:#c0392b}
+.badge.type{background:#fff3e0; color:#b26a00; border:1px solid #f0d59a}
 .score{
   position:absolute; top:14px; right:16px;
   background:linear-gradient(135deg,var(--green),var(--green-d)); color:#fff;

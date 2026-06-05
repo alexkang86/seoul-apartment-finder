@@ -59,6 +59,7 @@ function passFilters(a){
   if(v("trendMin")&&(a.trend_pct==null||a.trend_pct<n("trendMin")))return false;
   if($("schoolReq").checked&&!((a.elem_school_count||0)>=1))return false;
   if($("hideRisk").checked&&a.gap_ratio!=null&&a.gap_ratio>0.95)return false;
+  if($("aptOnly").checked&&a.building_type&&a.building_type!=="아파트")return false;
   const r=v("regionSel"); if(r){const s=SEOUL.has(a.gu); if(r==="seoul"&&!s)return false; if(r==="gg"&&s)return false;}
   if(v("guSel")&&a.gu!==v("guSel"))return false;
   return true;
@@ -86,6 +87,7 @@ function cardHTML(a){
    <div class="kv"><span>방/욕실(근사)</span><b>방 ${a.rooms_est||"?"} · 욕실 ${a.baths_est||"?"}</b></div>
    <div class="kv"><span>학교(동 내)</span><b>초 ${a.elem_school_count||0} · 중 ${a.middle_school_count||0} · 고 ${a.high_school_count||0}</b></div>
    <div class="badges">
+     ${a.building_type&&a.building_type!=="아파트"?`<span class="badge type">${a.building_type}</span>`:''}
      ${newish?'<span class="badge">신축(7년내)</span>':'<span class="badge no">구축</span>'}
      ${(a.gap_ratio||0)>=0.8&&!risk?'<span class="badge">갭 작음</span>':''}
      ${(a.trend_pct||0)>0?'<span class="badge">상승세</span>':''}
@@ -154,7 +156,7 @@ const PRESETS={
  big:{roomsMin:4,bathsMin:2,priceMax:60000,sort:"score",hideRisk:true},
 };
 const ALLF=["priceMin","priceMax","yearMin","yearMax","areaMin","areaMax","roomsMin","bathsMin","gapMin","gapMax","trendMin"];
-function clearAll(){ALLF.forEach(i=>$(i).value="");["priceMinEok","priceMinMan","priceMaxEok","priceMaxMan"].forEach(i=>$(i).value="");$("regionSel").value="";$("guSel").value="";$("schoolReq").checked=false;$("hideRisk").checked=true;$("groupComplex").checked=true;$("sortSel").value="score";}
+function clearAll(){ALLF.forEach(i=>$(i).value="");["priceMinEok","priceMinMan","priceMaxEok","priceMaxMan"].forEach(i=>$(i).value="");$("regionSel").value="";$("guSel").value="";$("schoolReq").checked=false;$("hideRisk").checked=true;$("groupComplex").checked=true;$("aptOnly").checked=false;$("sortSel").value="score";}
 function applyPreset(p){
   clearAll();
   if(p==="reset"){render();return;}
@@ -171,7 +173,7 @@ function applyPreset(p){
 // ---- 설정 저장/복원 ----
 function saveState(){
   const s={};ALLF.forEach(i=>s[i]=$(i).value);
-  s.region=$("regionSel").value;s.gu=$("guSel").value;s.school=$("schoolReq").checked;s.hide=$("hideRisk").checked;s.group=$("groupComplex").checked;s.sort=$("sortSel").value;
+  s.region=$("regionSel").value;s.gu=$("guSel").value;s.school=$("schoolReq").checked;s.hide=$("hideRisk").checked;s.group=$("groupComplex").checked;s.aptOnly=$("aptOnly").checked;s.sort=$("sortSel").value;
   s.w=[$("wGap").value,$("wNew").value,$("wTrend").value,$("wSchool").value];
   try{localStorage.setItem("aptFilters_v3",JSON.stringify(s));}catch(e){}
 }
@@ -180,7 +182,7 @@ function loadState(){
     ALLF.forEach(i=>{if(s[i]!=null)$(i).value=s[i];});
     priceToFields();
     if(s.region!=null)$("regionSel").value=s.region;if(s.gu!=null)$("guSel").value=s.gu;
-    $("schoolReq").checked=!!s.school;if(s.hide!=null)$("hideRisk").checked=s.hide;if(s.group!=null)$("groupComplex").checked=s.group;if(s.sort)$("sortSel").value=s.sort;
+    $("schoolReq").checked=!!s.school;if(s.hide!=null)$("hideRisk").checked=s.hide;if(s.group!=null)$("groupComplex").checked=s.group;if(s.aptOnly!=null)$("aptOnly").checked=s.aptOnly;if(s.sort)$("sortSel").value=s.sort;
     if(s.w){["wGap","wNew","wTrend","wSchool"].forEach((id,i)=>{$(id).value=s.w[i];syncW();});}
   }catch(e){}
 }
@@ -229,7 +231,7 @@ function showRefreshBanner(){
   $("rbReload").onclick=()=>location.reload();
 }
 
-$("apply").onclick=render;$("reset").onclick=()=>applyPreset("reset");$("sortSel").onchange=render;$("groupComplex").onchange=render;
+$("apply").onclick=render;$("reset").onclick=()=>applyPreset("reset");$("sortSel").onchange=render;$("groupComplex").onchange=render;$("aptOnly").onchange=render;
 document.querySelectorAll(".preset").forEach(b=>b.onclick=()=>applyPreset(b.dataset.preset));
 document.querySelectorAll(".mini").forEach(b=>b.onclick=()=>{const a=+b.dataset.area;if(a===59){$("areaMin").value=55;$("areaMax").value=66;}else if(a===84){$("areaMin").value=78;$("areaMax").value=100;}else{$("areaMin").value="";$("areaMax").value="";}render();});
 ["wGap","wNew","wTrend","wSchool"].forEach(id=>$(id).oninput=()=>{syncW();render();});
