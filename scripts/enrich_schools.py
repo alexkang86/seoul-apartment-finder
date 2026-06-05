@@ -87,7 +87,7 @@ def main():
     csvp=find_csv()
     if not csvp: print("학교 CSV 없음 (data/ 에 넣어주세요)"); return
     counts=load_schools(csvp)
-    apt_path=os.path.join(ROOT,"web","data","apartments.json")
+    apt_path=os.path.join(ROOT,"docs","data","apartments.json")
     d=json.load(open(apt_path,encoding="utf-8"))
     hit=0; hit_seoul=0; hit_gg=0
     for a in d.get("items",[]):

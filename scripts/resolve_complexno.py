@@ -10,7 +10,7 @@ import os, re, json, time, urllib.parse, urllib.request
 from collections import Counter
 
 ROOT = os.path.join(os.path.dirname(__file__), "..")
-APT  = os.path.join(ROOT, "web", "data", "apartments.json")
+APT  = os.path.join(ROOT, "docs", "data", "apartments.json")
 CACHE_PATH = os.path.join(ROOT, "data", "complexno_cache.json")
 UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 "
       "(KHTML, like Gecko) Version/17.0 Safari/605.1.15")

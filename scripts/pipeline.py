@@ -123,7 +123,7 @@ def load_schools(path):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--months", type=int, default=6, help="최근 N개월 수집")
-    ap.add_argument("--out", default=os.path.join(os.path.dirname(__file__), "..", "web", "data", "apartments.json"))
+    ap.add_argument("--out", default=os.path.join(os.path.dirname(__file__), "..", "docs", "data", "apartments.json"))
     ap.add_argument("--schools", default=os.path.join(os.path.dirname(__file__), "..", "data", "schools_seoul.csv"))
     ap.add_argument("--gu", nargs="*", help="특정 구만 (예: 노원구 도봉구). 미지정시 서울 전체")
     ap.add_argument("--gg", action="store_true", help="경기 외곽 통근권 포함(서울+경기)")

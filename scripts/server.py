@@ -9,7 +9,7 @@ import http.server, socketserver, functools, os, re, json, urllib.parse, urllib.
 from collections import Counter
 
 ROOT = os.path.join(os.path.dirname(__file__), "..")
-WEB  = os.path.join(ROOT, "web")
+WEB  = os.path.join(ROOT, "docs")
 CACHE_PATH = os.path.join(ROOT, "data", "complexno_cache.json")
 PORT = int(os.environ.get("PORT", "8000"))
 UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 "
