@@ -134,6 +134,13 @@ function naverUrl(a){
   if(a.naver_complex_no) return "https://fin.land.naver.com/complexes/"+a.naver_complex_no;
   return "https://fin.land.naver.com/search?query="+encodeURIComponent((a.dong?a.dong+" ":"")+a.name);
 }
+// KB시세 보기: KB시세는 앱 데이터에 없음(KB 독점) → 실제 KB시세가 표시되는 곳으로 보냄.
+//  · 단지번호 있으면 네이버 단지 페이지(시세 섹션에 'KB부동산 시세' 표시)
+//  · 없으면 KB부동산이 최상단에 뜨는 검색으로 폴백
+function kbUrl(a){
+  if(a.naver_complex_no) return "https://fin.land.naver.com/complexes/"+a.naver_complex_no;
+  return "https://search.naver.com/search.naver?query="+encodeURIComponent((a.dong?a.dong+" ":"")+a.name+" KB시세");
+}
 function cardHTML(a){
   const newish=a.built_year&&(2026-a.built_year)<=7, age=a.built_year?(2026-a.built_year)+"년차":"-";
   const risk=a.gap_ratio!=null&&a.gap_ratio>0.95;
@@ -161,7 +168,10 @@ function cardHTML(a){
      ${stale?'<span class="badge no">⚠️시세추정 주의(거래 적음·오래됨)</span>':''}
      ${risk?'<span class="badge no">⚠️깡통위험(전세가율 95%+)</span>':''}
    </div>
-   <button class="loanbtn" data-n="${(a.name||'').replace(/"/g,'')}" data-g="${a.gu}" data-p="${curPrice(a)}">💰 대출 계산기</button>`;
+   <div class="actions">
+     <a class="kbbtn" href="${kbUrl(a)}" target="_blank" rel="noopener" title="앱 가격은 실거래가 기반 추정치입니다. KB시세(매매 일반평균가)는 단지 페이지의 '시세' 섹션에서 확인하세요.">🏦 KB시세 보기</a>
+     <button class="loanbtn" data-n="${(a.name||'').replace(/"/g,'')}" data-g="${a.gu}" data-p="${curPrice(a)}">💰 대출 계산기</button>
+   </div>`;
 }
 
 // ---- 지도 ----
