@@ -17,7 +17,8 @@ ROOT=os.path.join(os.path.dirname(__file__),"..")
 SEOUL_GU={"종로구","중구","용산구","성동구","광진구","동대문구","중랑구","성북구","강북구","도봉구","노원구","은평구","서대문구","마포구","양천구","강서구","구로구","금천구","영등포구","동작구","관악구","서초구","강남구","송파구","강동구"}
 
 NAME_COLS=["단지명","kaptName","아파트명","공동주택명"]
-HH_COLS=["세대수","세대수(세대)","총세대수","hhldCnt","kaptdaCnt","kaptDongCnt"]   # kaptDongCnt=동수(폴백X)
+HH_COLS=["세대수","세대수(세대)","총세대수","hhldCnt","kaptdaCnt"]
+FAR_COLS=["용적률","용적율","vlRat","용적률(%)"]   # 면적정보 데이터셋에 포함
 ADDR_COLS=["법정동주소","지번주소","주소","소재지지번주소","도로명주소","소재지도로명주소","kaptAddr"]
 
 def find_csv():
@@ -74,19 +75,25 @@ def to_int(s):
     s=re.sub(r"[^\d]","",s or "")
     return int(s) if s else None
 
+def to_num(s):
+    m=re.search(r"\d+(\.\d+)?", (s or "").replace(",",""))
+    return float(m.group()) if m else None
+
 def load_hh(p):
     rows,enc=read_rows(p)
-    # (sido,gu,dong) -> {name_norm: hh}
+    # (sido,gu,dong) -> {name_norm: {"hh":int, "far":float}}
     table=defaultdict(dict)
     n=0
     for r in rows:
-        hh=to_int(col(r,HH_COLS)); nm=col(r,NAME_COLS); addr=col(r,ADDR_COLS)
-        if not hh or not nm: continue
+        hh=to_int(col(r,HH_COLS)); far=to_num(col(r,FAR_COLS)); nm=col(r,NAME_COLS); addr=col(r,ADDR_COLS)
+        if not nm or (hh is None and far is None): continue
         key=parse_addr(addr)
         if not key: continue
-        table[key][norm_name(nm)]=max(hh, table[key].get(norm_name(nm),0))
+        cur=table[key].setdefault(norm_name(nm),{})
+        if hh and hh>cur.get("hh",0): cur["hh"]=hh
+        if far and not cur.get("far"): cur["far"]=round(far)
         n+=1
-    print(f"  세대수CSV({os.path.basename(p)}, {enc}): 서울·경기 단지 {n}건, 고유 동 {len(table)}곳")
+    print(f"  단지정보CSV({os.path.basename(p)}, {enc}): 서울·경기 {n}건, 고유 동 {len(table)}곳")
     return table
 
 def apt_key(a):
@@ -103,18 +110,19 @@ def main():
     table=load_hh(csvp)
     apt_path=os.path.join(ROOT,"docs","data","apartments.json")
     d=json.load(open(apt_path,encoding="utf-8"))
-    hit=0
+    hh_hit=far_hit=0
     for a in d.get("items",[]):
         bucket=table.get(apt_key(a))
         if not bucket: continue
         nn=norm_name(a.get("name",""))
-        hh=bucket.get(nn)
-        if hh is None:  # 부분일치(포함관계)
-            cand=[v for k,v in bucket.items() if nn and (nn in k or k in nn)]
-            hh=max(cand) if cand else None
-        if hh:
-            a["households"]=hh; hit+=1
+        rec=bucket.get(nn)
+        if rec is None:  # 부분일치(포함관계)
+            cands=[v for k,v in bucket.items() if nn and (nn in k or k in nn)]
+            rec=max(cands,key=lambda x:x.get("hh",0)) if cands else None
+        if not rec: continue
+        if rec.get("hh"): a["households"]=rec["hh"]; hh_hit+=1
+        if rec.get("far"): a["far"]=rec["far"]; far_hit+=1
     json.dump(d, open(apt_path,"w",encoding="utf-8"), ensure_ascii=False, indent=1)
-    print(f"세대수 매칭 완료: {hit}개 / 전체 {len(d.get('items',[]))}개 단지")
+    print(f"매칭 완료: 세대수 {hh_hit}개 · 용적률 {far_hit}개 / 전체 {len(d.get('items',[]))}개 단지")
 
 if __name__=="__main__": main()

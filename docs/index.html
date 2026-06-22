@@ -35,7 +35,8 @@
 
 <!-- 내 위치(회사): 거리순 정렬 + 카드 길찾기 링크에 사용 -->
 <section class="places">
-  <div class="pf"><label>🏢 회사 주소</label><input type="text" id="workAddr" placeholder="예: 서울 강남구 테헤란로 152"></div>
+  <div class="pf"><label>🏢 회사1 주소</label><input type="text" id="workAddr" placeholder="예: 서울 강남구 테헤란로 152"></div>
+  <div class="pf"><label>🏢 회사2 주소</label><input type="text" id="work2Addr" placeholder="예: 서울 중구 세종대로 110"></div>
   <button id="savePlaces">📍 좌표 저장</button>
   <span id="placesMsg" class="placesmsg"></span>
 </section>
@@ -54,6 +55,9 @@
   </div>
   <div class="f"><label>전용면적(㎡) <button class="mini" data-area="59">59형</button><button class="mini" data-area="84">84형</button><button class="mini" data-area="0">전체</button></label>
     <div class="row"><input type="number" id="areaMin" placeholder="최소"><span>~</span><input type="number" id="areaMax" placeholder="최대"></div>
+  </div>
+  <div class="f"><label>평형(평)</label>
+    <div class="row"><input type="number" id="pyMin" placeholder="예 24"><span>~</span><input type="number" id="pyMax" placeholder="예 34"></div>
   </div>
   <div class="f"><label>방 / 욕실 (최소)</label>
     <div class="row"><input type="number" id="roomsMin" placeholder="방 ≥"><input type="number" id="bathsMin" placeholder="욕실 ≥"></div>
@@ -86,7 +90,9 @@
       <option value="trend">상승세 높은순</option>
       <option value="price">추정 현재가 낮은순</option>
       <option value="year">신축순</option>
-      <option value="work">🏢 회사에서 가까운순</option>
+      <option value="work">🏢 회사1에서 가까운순</option>
+      <option value="work2">🏢 회사2에서 가까운순</option>
+      <option value="workboth">🏢 회사1·2 합산 가까운순</option>
     </select>
   </div>
   <div class="f btns">
@@ -144,6 +150,6 @@
 
 <footer>국토교통부 실거래가 기반 · 개인용 후보 탐색 · 갱신: <code>scripts/pipeline.py --gg</code></footer>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="app.js?v=20"></script>
+<script src="app.js?v=23"></script>
 </body>
 </html>
