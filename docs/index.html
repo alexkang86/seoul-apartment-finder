@@ -33,9 +33,8 @@
   <button class="preset ghost" data-preset="reset">초기화</button>
 </div>
 
-<!-- 내 위치(집·회사): 거리순 정렬 + 카드 길찾기 링크에 사용 -->
+<!-- 내 위치(회사): 거리순 정렬 + 카드 길찾기 링크에 사용 -->
 <section class="places">
-  <div class="pf"><label>🏠 집 주소</label><input type="text" id="homeAddr" placeholder="예: 서울 노원구 상계동 / 상계주공7단지"></div>
   <div class="pf"><label>🏢 회사 주소</label><input type="text" id="workAddr" placeholder="예: 서울 강남구 테헤란로 152"></div>
   <button id="savePlaces">📍 좌표 저장</button>
   <span id="placesMsg" class="placesmsg"></span>
@@ -87,7 +86,6 @@
       <option value="trend">상승세 높은순</option>
       <option value="price">추정 현재가 낮은순</option>
       <option value="year">신축순</option>
-      <option value="home">🏠 집에서 가까운순</option>
       <option value="work">🏢 회사에서 가까운순</option>
     </select>
   </div>
@@ -146,6 +144,6 @@
 
 <footer>국토교통부 실거래가 기반 · 개인용 후보 탐색 · 갱신: <code>scripts/pipeline.py --gg</code></footer>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="app.js?v=19"></script>
+<script src="app.js?v=20"></script>
 </body>
 </html>

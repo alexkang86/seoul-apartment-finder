@@ -127,7 +127,7 @@ function passFilters(a){
 }
 function sortRows(rows){
   const D=(a,p)=>distTo(a,p)??1e9;
-  const c={score:(a,b)=>score(b)-score(a),gap:(a,b)=>(b.gap_ratio||0)-(a.gap_ratio||0),trend:(a,b)=>(b.trend_pct||-99)-(a.trend_pct||-99),price:(a,b)=>curPrice(a)-curPrice(b),year:(a,b)=>(b.built_year||0)-(a.built_year||0),home:(a,b)=>D(a,PLACES.home)-D(b,PLACES.home),work:(a,b)=>D(a,PLACES.work)-D(b,PLACES.work)}[$("sortSel").value];
+  const c={score:(a,b)=>score(b)-score(a),gap:(a,b)=>(b.gap_ratio||0)-(a.gap_ratio||0),trend:(a,b)=>(b.trend_pct||-99)-(a.trend_pct||-99),price:(a,b)=>curPrice(a)-curPrice(b),year:(a,b)=>(b.built_year||0)-(a.built_year||0),work:(a,b)=>D(a,PLACES.work)-D(b,PLACES.work)}[$("sortSel").value];
   return rows.sort(c);
 }
 // NPay 부동산 직링크: 단지번호(baked)가 있으면 해당 단지 페이지로 직행, 없으면 검색 폴백.
@@ -155,11 +155,11 @@ async function geocode(q){
 }
 async function savePlaces(){
   const msg=$("placesMsg"); msg.textContent="좌표 찾는 중…";
-  const h=$("homeAddr").value.trim(), w=$("workAddr").value.trim();
-  const [hr,wr]=await Promise.all([geocode(h),geocode(w)]);
-  PLACES={}; if(hr)PLACES.home=hr; if(wr)PLACES.work=wr;
+  const w=$("workAddr").value.trim();
+  const wr=await geocode(w);
+  PLACES={}; if(wr)PLACES.work=wr;
   try{localStorage.setItem("aptPlaces",JSON.stringify(PLACES));}catch(e){}
-  msg.textContent=[h?(hr?"🏠 ✓":"🏠 실패"):"",w?(wr?"🏢 ✓":"🏢 실패"):""].filter(Boolean).join("  ")||"주소를 입력하세요";
+  msg.textContent=w?(wr?"🏢 ✓":"🏢 실패"):"주소를 입력하세요";
   render();
 }
 // 단지(근사좌표)→집/회사 직선거리(㎞). 단지 좌표가 구/동 근사라 거리도 근사치.
@@ -176,7 +176,7 @@ function cardHTML(a){
   const risk=a.gap_ratio!=null&&a.gap_ratio>0.95;
   const sm=staleMonths(a), stale=(a.recent_count!=null&&a.recent_count<=1)||(sm!=null&&sm>=3);
   const gx=nearestGtx(a);
-  const dh=distTo(a,PLACES.home), dw=distTo(a,PLACES.work);
+  const dw=distTo(a,PLACES.work);
   const r1=x=>x==null?"-":(Math.round(x*10)/10)+"㎞";
   return `<span class="score">점수 ${score(a)}</span>
    <div class="name"><a href="${naverUrl(a)}" target="_blank" rel="noopener" title="네이버페이 부동산에서 '${a.dong} ${a.name}' 매물·시세 검색">${a.name} <span class="ext">↗</span></a><span class="ptag">${a.pyeong}평·${a.area_m2}㎡</span>${a._variants>1?`<span class="vtag">외 ${a._variants-1}개 평형</span>`:""}</div>
@@ -185,7 +185,6 @@ function cardHTML(a){
    <div class="kv"><span>KB시세(추정)</span><b>${won(curPrice(a))} <small>실거래 추정·KB값 아님</small></b></div>
    <div class="kv"><span>최근 거래</span><b>${a.last_deal||"-"}${a.recent_count?` · 최근 ${a.recent_count}건`:""}${a.trade_count?` (총 ${a.trade_count}건)`:""}</b></div>
    ${a.households?`<div class="kv"><span>세대수</span><b>${a.households.toLocaleString()}세대</b></div>`:""}
-   ${PLACES.home?`<div class="kv"><span>🏠 집까지(직선)</span><b>${r1(dh)}</b></div>`:""}
    ${PLACES.work?`<div class="kv"><span>🏢 회사까지(직선)</span><b>${r1(dw)}</b></div>`:""}
    <div class="kv"><span>전세가</span><b>${won(a.jeonse_price_man)}</b></div>
    <div class="kv"><span>매매-전세 갭</span><b>${a.gap_man!=null?won(a.gap_man):"-"} ${a.gap_ratio!=null?`(전세가율 ${(a.gap_ratio*100).toFixed(0)}%)`:""}</b></div>
@@ -387,7 +386,6 @@ document.querySelectorAll(".mini").forEach(b=>b.onclick=()=>{const a=+b.dataset.
 ["wGap","wNew","wTrend","wSchool"].forEach(id=>$(id).oninput=()=>{syncW();render();});
 $("showGtx").onchange=syncSubwayLayers;$("showSubway").onchange=syncSubwayLayers;
 // 내 위치
-if(PLACES.home)$("homeAddr").value=PLACES.home.name||"";
 if(PLACES.work)$("workAddr").value=PLACES.work.name||"";
 $("savePlaces").onclick=savePlaces;
 // 대출 계산기
