@@ -206,6 +206,12 @@ def main():
         if len(ordered)>=2:
             old=med(ordered[0][1]); new=med(ordered[-1][1])
             if old: trend=round((new-old)/old*100,1)
+        # 추정 현재가: 거래가 있는 '가장 최근 2개월'의 매매가 중앙값(오래된 1건이 현재가처럼 보이는 문제 완화)
+        recent_months = {ym for ym,_ in ordered[-2:]}
+        recent_prices = [x[2] for x in tlist if x[0] in recent_months]
+        recent_price = med(recent_prices)
+        last_ymd = max(x[0] for x in tlist)             # "YYYYMM"
+        last_deal = f"{last_ymd[:4]}.{last_ymd[4:6]}"
         rl = rent.get(k, [])
         jeonse_ppp = med([x[1] for x in rl]) if rl else None
         jeonse_price = med([x[2] for x in rl]) if rl else None
@@ -221,6 +227,8 @@ def main():
             "built_year":m.get("built_year"),
             "area_m2":round(area_avg,1),"pyeong":round(area_avg/3.305785,1),
             "trade_price_man":round(trade_price),"trade_ppp_man":round(trade_ppp),
+            "recent_price_man":round(recent_price) if recent_price else None,
+            "recent_count":len(recent_prices),"last_deal":last_deal,
             "jeonse_price_man":round(jeonse_price) if jeonse_price else None,
             "jeonse_ppp_man":round(jeonse_ppp) if jeonse_ppp else None,
             "gap_ratio":gap_ratio,"gap_man":gap_man,

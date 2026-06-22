@@ -10,6 +10,15 @@ const won = m => {
   if(eok) return neg+eok+"억";
   return neg+man.toLocaleString()+"만원";
 };
+// 추정 현재가: 거래가 있는 '최근 2개월' 매매가 중앙값(없으면 전체 중앙값). 합법 데이터로 현재 시세에 최대한 근접.
+const curPrice = a => (a.recent_price_man!=null ? a.recent_price_man : a.trade_price_man);
+// 데이터 기준월 대비 마지막 거래가 몇 달 전인지(신선도)
+function staleMonths(a){
+  if(!a.last_deal) return null;
+  const [y,m]=a.last_deal.split(".").map(Number); if(!y||!m) return null;
+  const base=LOADED_UPDATED?new Date(LOADED_UPDATED):new Date();
+  return (base.getFullYear()-y)*12 + (base.getMonth()+1 - m);
+}
 const SEOUL = new Set(["종로구","중구","용산구","성동구","광진구","동대문구","중랑구","성북구","강북구","도봉구","노원구","은평구","서대문구","마포구","양천구","강서구","구로구","금천구","영등포구","동작구","관악구","서초구","강남구","송파구","강동구"]);
 
 const GU_COORDS={
@@ -46,8 +55,8 @@ function score(a){
 // ---- 필터 ----
 function passFilters(a){
   const v=id=>$(id).value, n=id=>+$(id).value;
-  if(n("priceMin")&&a.trade_price_man<n("priceMin"))return false;
-  if(n("priceMax")&&a.trade_price_man>n("priceMax"))return false;
+  if(n("priceMin")&&curPrice(a)<n("priceMin"))return false;
+  if(n("priceMax")&&curPrice(a)>n("priceMax"))return false;
   if(n("yearMin")&&(!a.built_year||a.built_year<n("yearMin")))return false;
   if(n("yearMax")&&a.built_year&&a.built_year>n("yearMax"))return false;
   if(n("areaMin")&&a.area_m2<n("areaMin"))return false;
@@ -65,7 +74,7 @@ function passFilters(a){
   return true;
 }
 function sortRows(rows){
-  const c={score:(a,b)=>score(b)-score(a),gap:(a,b)=>(b.gap_ratio||0)-(a.gap_ratio||0),trend:(a,b)=>(b.trend_pct||-99)-(a.trend_pct||-99),price:(a,b)=>a.trade_price_man-b.trade_price_man,year:(a,b)=>(b.built_year||0)-(a.built_year||0)}[$("sortSel").value];
+  const c={score:(a,b)=>score(b)-score(a),gap:(a,b)=>(b.gap_ratio||0)-(a.gap_ratio||0),trend:(a,b)=>(b.trend_pct||-99)-(a.trend_pct||-99),price:(a,b)=>curPrice(a)-curPrice(b),year:(a,b)=>(b.built_year||0)-(a.built_year||0)}[$("sortSel").value];
   return rows.sort(c);
 }
 // NPay 부동산 직링크: 단지번호(baked)가 있으면 해당 단지 페이지로 직행, 없으면 검색 폴백.
@@ -77,10 +86,12 @@ function naverUrl(a){
 function cardHTML(a){
   const newish=a.built_year&&(2026-a.built_year)<=7, age=a.built_year?(2026-a.built_year)+"년차":"-";
   const risk=a.gap_ratio!=null&&a.gap_ratio>0.95;
+  const sm=staleMonths(a), stale=(a.recent_count!=null&&a.recent_count<=1)||(sm!=null&&sm>=3);
   return `<span class="score">점수 ${score(a)}</span>
    <div class="name"><a href="${naverUrl(a)}" target="_blank" rel="noopener" title="네이버페이 부동산에서 '${a.dong} ${a.name}' 매물·시세 검색">${a.name} <span class="ext">↗</span></a><span class="ptag">${a.pyeong}평·${a.area_m2}㎡</span>${a._variants>1?`<span class="vtag">외 ${a._variants-1}개 평형</span>`:""}</div>
    <div class="loc">${a.gu} ${a.dong} · ${a.built_year||"?"}년(${age})</div>
-   <div class="kv"><span>매매가</span><b class="price">${won(a.trade_price_man)}</b></div>
+   <div class="kv"><span>추정 현재가</span><b class="price">${won(curPrice(a))}</b></div>
+   <div class="kv"><span>최근 거래</span><b>${a.last_deal||"-"}${a.recent_count?` · 최근 ${a.recent_count}건`:""}${a.trade_count?` (총 ${a.trade_count}건)`:""}</b></div>
    <div class="kv"><span>전세가</span><b>${won(a.jeonse_price_man)}</b></div>
    <div class="kv"><span>매매-전세 갭</span><b>${a.gap_man!=null?won(a.gap_man):"-"} ${a.gap_ratio!=null?`(전세가율 ${(a.gap_ratio*100).toFixed(0)}%)`:""}</b></div>
    <div class="kv"><span>최근 추세</span><b style="color:${(a.trend_pct||0)>0?'#1E8449':'#C0392B'}">${a.trend_pct!=null?(a.trend_pct>0?"+":"")+a.trend_pct+"%":"-"}</b></div>
@@ -93,6 +104,7 @@ function cardHTML(a){
      ${(a.trend_pct||0)>0?'<span class="badge">상승세</span>':''}
      ${(a.rooms_est||0)>=3&&(a.baths_est||0)>=2?'<span class="badge">방3·욕2</span>':''}
      ${(a.elem_school_count||0)>=1?'<span class="badge">🏫 초품아</span>':''}
+     ${stale?'<span class="badge no">⚠️시세추정 주의(거래 적음·오래됨)</span>':''}
      ${risk?'<span class="badge no">⚠️깡통위험(전세가율 95%+)</span>':''}
    </div>`;
 }
@@ -104,7 +116,7 @@ function renderMap(rows){
   ensureMap();MARKERS.clearLayers();const pts=[];
   rows.slice(0,500).forEach(a=>{const c=coordFor(a);if(!c)return;pts.push(c);
     const m=L.circleMarker(c,{radius:7,color:'#C0392B',fillColor:'#C0392B',fillOpacity:.7,weight:1});
-    m.bindPopup(`<b>${a.name}</b><br>${a.gu} ${a.dong} ${a.built_year||"?"}년<br>매매 ${won(a.trade_price_man)} / 전세 ${won(a.jeonse_price_man)}<br>전세가율 ${a.gap_ratio!=null?(a.gap_ratio*100).toFixed(0)+"%":"-"} · 추세 ${a.trend_pct!=null?a.trend_pct+"%":"-"} · 점수 ${score(a)}<br>학교 초${a.elem_school_count||0}·중${a.middle_school_count||0}·고${a.high_school_count||0}<br><a href="${naverUrl(a)}" target="_blank" rel="noopener">네이버페이 부동산 ↗</a>`);
+    m.bindPopup(`<b>${a.name}</b><br>${a.gu} ${a.dong} ${a.built_year||"?"}년<br>추정현재가 ${won(curPrice(a))}${a.last_deal?`(${a.last_deal})`:""} / 전세 ${won(a.jeonse_price_man)}<br>전세가율 ${a.gap_ratio!=null?(a.gap_ratio*100).toFixed(0)+"%":"-"} · 추세 ${a.trend_pct!=null?a.trend_pct+"%":"-"} · 점수 ${score(a)}<br>학교 초${a.elem_school_count||0}·중${a.middle_school_count||0}·고${a.high_school_count||0}<br><a href="${naverUrl(a)}" target="_blank" rel="noopener">네이버페이 부동산 ↗</a>`);
     MARKERS.addLayer(m);});
   setTimeout(()=>{MAP.invalidateSize();if(pts.length)MAP.fitBounds(pts,{padding:[30,30],maxZoom:13});},50);
 }
