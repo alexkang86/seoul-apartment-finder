@@ -12,6 +12,7 @@ fi
 
 python3 scripts/pipeline.py --gg --months 6 || { echo "pipeline 실패"; exit 1; }
 python3 scripts/enrich_schools.py || { echo "enrich 실패"; exit 1; }
+python3 scripts/enrich_households.py || echo "세대수 보강 건너뜀(CSV 없음/openpyxl 미설치)"
 RESOLVE_LIMIT=3000 RESOLVE_DELAY=0.2 python3 scripts/resolve_complexno.py || true
 
 git add docs/data/apartments.json data/complexno_cache.json

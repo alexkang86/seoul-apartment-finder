@@ -10,8 +10,9 @@
 매칭: (시도, 시군구정규화, 법정동, 단지명정규화) — enrich_schools.py 와 동일한 주소 정규화.
 세대수 열/단지명 열/주소 열 이름은 데이터셋마다 달라서 후보를 모두 시도한다.
 """
-import os, csv, json, re
+import os, csv, json, re, unicodedata
 from collections import defaultdict
+def nfc(s): return unicodedata.normalize("NFC", s or "")
 
 ROOT=os.path.join(os.path.dirname(__file__),"..")
 SEOUL_GU={"종로구","중구","용산구","성동구","광진구","동대문구","중랑구","성북구","강북구","도봉구","노원구","은평구","서대문구","마포구","양천구","강서구","구로구","금천구","영등포구","동작구","관악구","서초구","강남구","송파구","강동구"}
@@ -23,12 +24,28 @@ ADDR_COLS=["법정동주소","지번주소","주소","소재지지번주소","�
 
 def find_csv():
     dd=os.path.join(ROOT,"data")
-    cands=sorted(f for f in os.listdir(dd) if f.lower().endswith(".csv"))
-    pref=[f for f in cands if any(k in f for k in ("공동주택","단지","household","apt","아파트"))
-          and "학교" not in f and "subway" not in f.lower() and "school" not in f.lower()]
-    return os.path.join(dd,pref[0]) if pref else None
+    cands=sorted(f for f in os.listdir(dd) if f.lower().endswith((".csv",".xlsx")))
+    pref=[f for f in cands if any(k in nfc(f) for k in ("공동주택","단지","household","apt","아파트","면적","기본정보"))
+          and "학교" not in nfc(f) and "subway" not in f.lower() and "school" not in f.lower()]
+    return [os.path.join(dd,f) for f in pref]
+
+def find_header_row(get):
+    # 헤더 행 탐색(1행이 안내문인 K-apt 엑셀 대응): '단지명'/'세대수'가 있는 행
+    for ri in range(1,6):
+        vals=[str(v or "") for v in get(ri)]
+        if any(("단지명" in v or "세대수" in v or "법정동" in v) for v in vals): return ri,vals
+    return 1, [str(v or "") for v in get(1)]
 
 def read_rows(p):
+    if p.lower().endswith(".xlsx"):
+        import openpyxl, warnings; warnings.filterwarnings("ignore")
+        wb=openpyxl.load_workbook(p, data_only=True); ws=wb.active
+        get=lambda ri:[ws.cell(row=ri,column=c).value for c in range(1,ws.max_column+1)]
+        hr,hdr=find_header_row(get); hdr=[nfc(h) for h in hdr]
+        rows=[{hdr[i]:ws.cell(row=ri,column=i+1).value for i in range(len(hdr))}
+              for ri in range(hr+1, ws.max_row+1)]
+        wb.close()
+        return rows,"xlsx"
     for enc in ("cp949","utf-8-sig","euc-kr","utf-8"):
         try:
             rows=list(csv.DictReader(open(p,encoding=enc)))
@@ -38,7 +55,8 @@ def read_rows(p):
 
 def col(row,cands):
     for c in cands:
-        if c in row and (row[c] or "").strip(): return row[c].strip()
+        if c in row and row[c] not in (None,""):
+            return str(row[c]).strip()
     return ""
 
 def parse_addr(jibun):     # → (sido, gu_norm, dong)
@@ -72,28 +90,29 @@ def norm_name(s):
     return re.sub(r"\s+","",s).replace("아파트","")
 
 def to_int(s):
-    s=re.sub(r"[^\d]","",s or "")
-    return int(s) if s else None
+    m=re.search(r"\d+(\.\d+)?", str(s or "").replace(",",""))
+    return int(float(m.group())) if m else None
 
 def to_num(s):
     m=re.search(r"\d+(\.\d+)?", (s or "").replace(",",""))
     return float(m.group()) if m else None
 
-def load_hh(p):
-    rows,enc=read_rows(p)
-    # (sido,gu,dong) -> {name_norm: {"hh":int, "far":float}}
+def load_hh(paths):
+    # (sido,gu,dong) -> {name_norm: {"hh":int, "far":float}}  — 여러 CSV 병합
     table=defaultdict(dict)
-    n=0
-    for r in rows:
-        hh=to_int(col(r,HH_COLS)); far=to_num(col(r,FAR_COLS)); nm=col(r,NAME_COLS); addr=col(r,ADDR_COLS)
-        if not nm or (hh is None and far is None): continue
-        key=parse_addr(addr)
-        if not key: continue
-        cur=table[key].setdefault(norm_name(nm),{})
-        if hh and hh>cur.get("hh",0): cur["hh"]=hh
-        if far and not cur.get("far"): cur["far"]=round(far)
-        n+=1
-    print(f"  단지정보CSV({os.path.basename(p)}, {enc}): 서울·경기 {n}건, 고유 동 {len(table)}곳")
+    for p in paths:
+        rows,enc=read_rows(p); n=0
+        for r in rows:
+            hh=to_int(col(r,HH_COLS)); far=to_num(col(r,FAR_COLS)); nm=col(r,NAME_COLS); addr=col(r,ADDR_COLS)
+            if not nm or (hh is None and far is None): continue
+            key=parse_addr(addr)
+            if not key: continue
+            cur=table[key].setdefault(norm_name(nm),{})
+            if hh and hh>cur.get("hh",0): cur["hh"]=hh
+            if far and not cur.get("far"): cur["far"]=round(far)
+            n+=1
+        print(f"  · {os.path.basename(p)} ({enc}): 서울·경기 {n}건")
+    print(f"  병합: 고유 동 {len(table)}곳")
     return table
 
 def apt_key(a):
@@ -102,12 +121,13 @@ def apt_key(a):
     return (sido, a["gu"], dong)
 
 def main():
-    csvp=find_csv()
-    if not csvp:
-        print("세대수 CSV 없음 → data/ 에 '공동주택 단지 기본정보' CSV를 넣어주세요 "
-              "(data.go.kr/data/15106861 또는 15073271, 로그인 없이 다운로드)")
+    csvs=find_csv()
+    if not csvs:
+        print("CSV 없음 → data/ 에 공동주택 CSV를 넣어주세요:\n"
+              "  세대수: data.go.kr/data/15073271 (또는 15106861)\n"
+              "  용적률: data.go.kr/data/15073269 (공동주택 단지 면적정보)")
         return
-    table=load_hh(csvp)
+    table=load_hh(csvs)
     apt_path=os.path.join(ROOT,"docs","data","apartments.json")
     d=json.load(open(apt_path,encoding="utf-8"))
     hh_hit=far_hit=0
