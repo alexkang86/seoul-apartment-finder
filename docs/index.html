@@ -66,6 +66,8 @@
     <label><input type="checkbox" id="schoolReq"> 초품아(초등학교 ≥1)</label>
     <label><input type="checkbox" id="hideRisk" checked> 깡통위험(전세가율 95%+) 숨김</label>
     <label><input type="checkbox" id="aptOnly"> 아파트만(주상복합·오피스텔 제외)</label>
+    <label><input type="checkbox" id="showGtx" checked> 🚄 지도에 GTX 노선(미개통·계획 포함)</label>
+    <label><input type="checkbox" id="showSubway"> 🚇 지도에 수도권 전철역 전체</label>
   </div>
   <div class="f"><label>정렬</label>
     <select id="sortSel">
@@ -100,8 +102,37 @@
 <div id="map"></div>
 <div class="cards" id="cards"></div>
 
+<!-- 대출 계산기 모달 -->
+<div id="loanModal" class="loan-modal" hidden>
+  <div class="loan-card">
+    <div class="loan-head"><span>💰 대출 계산기</span><button id="loanClose" aria-label="닫기">✕</button></div>
+    <div class="loan-title" id="loanTitle"></div>
+
+    <div class="loan-row"><span>상환 방법</span>
+      <span class="seg"><button class="segb active" data-m="원리금균등">원리금균등</button><button class="segb" data-m="원금균등">원금균등</button></span>
+    </div>
+    <div class="loan-row"><span>시세(추정)</span>
+      <span><input type="number" id="lnSise" step="500"> <i>만원</i> <b id="lnSiseW"></b></span>
+    </div>
+    <div class="loan-row"><span id="lnZone">규제구분</span>
+      <span>LTV <input type="number" id="lnLtv" min="0" max="100" step="5"> <i>%</i>
+        <label class="ck"><input type="checkbox" id="lnFirst"> 생애최초</label></span>
+    </div>
+    <div class="loan-row"><span>금리(최저 가정)</span><span><input type="number" id="lnRate" step="0.1"> <i>%</i></span></div>
+    <div class="loan-row"><span>대출 기간</span><span><input type="number" id="lnYears" min="1" max="50" step="1"> <i>년</i></span></div>
+    <div class="loan-row"><span>대출 금액</span><span><b id="lnAmtW"></b></span></div>
+    <input type="range" id="lnAmt" min="0" step="100" class="loan-slider">
+
+    <div class="loan-result">
+      <div><span>최대 대출금액</span><b id="lnMax">-</b></div>
+      <div><span>월 상환액<small id="lnMethodLbl"></small></span><b id="lnMonthly">-</b></div>
+    </div>
+    <div class="loan-disc">⚠️ <b>KB시세 아님</b> — 국토부 <b>실거래가 기반 추정시세</b>입니다. LTV·금리는 가정값(최저금리 기준)이라 실제 한도·금리는 은행/네이버페이 부동산에서 확인하세요. 규제지역·생애최초 조건은 정책에 따라 변동됩니다.</div>
+  </div>
+</div>
+
 <footer>국토교통부 실거래가 기반 · 개인용 후보 탐색 · 갱신: <code>scripts/pipeline.py --gg</code></footer>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="app.js?v=14"></script>
+<script src="app.js?v=15"></script>
 </body>
 </html>

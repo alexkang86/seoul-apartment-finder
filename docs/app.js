@@ -19,6 +19,57 @@ function staleMonths(a){
   const base=LOADED_UPDATED?new Date(LOADED_UPDATED):new Date();
   return (base.getFullYear()-y)*12 + (base.getMonth()+1 - m);
 }
+// ---- 대출 계산기 ----
+// 투기과열지구(2023.1~ 기준: 서울 강남3구+용산). 정책 변동 가능 → 모달에서 LTV 직접 수정 가능.
+const REG_ZONES=new Set(["강남구","서초구","송파구","용산구"]);
+const FIRST_LTV=80, FIRST_CAP=60000;   // 생애최초: LTV 80%, 한도 6억원(만원)
+function ltvFor(gu){return REG_ZONES.has(gu)?40:70;}
+function maxLoan(sise,ltv,first){let m=sise*ltv/100;if(first)m=Math.min(m,FIRST_CAP);return Math.max(0,Math.round(m));}
+// 월 상환액(만원). 원리금균등=매월 동일, 원금균등=첫 달(최대).
+function monthlyPay(P,ratePct,years,method){
+  const n=years*12, r=ratePct/100/12; if(P<=0||n<=0)return 0;
+  if(method==="원금균등")return P/n + P*r;
+  if(r===0)return P/n;
+  return P*r/(1-Math.pow(1+r,-n));
+}
+let LOAN={method:"원리금균등"};
+function openLoan(name,gu,price){
+  LOAN.gu=gu;
+  $("loanTitle").textContent=`${gu} · ${name}`;
+  $("lnZone").textContent=REG_ZONES.has(gu)?"투기과열지구":"비규제지역";
+  $("lnSise").value=price||0;
+  $("lnLtv").value=ltvFor(gu);
+  $("lnFirst").checked=false;
+  if(!$("lnRate").value)$("lnRate").value="4.0";
+  if(!$("lnYears").value)$("lnYears").value="30";
+  loanRecalc(true);
+  $("loanModal").hidden=false;
+}
+function loanRecalc(resetAmt){
+  const sise=+$("lnSise").value||0, first=$("lnFirst").checked;
+  let ltv=first?FIRST_LTV:(+$("lnLtv").value||0);
+  if(first)$("lnLtv").value=FIRST_LTV;
+  $("lnLtv").disabled=first;
+  const max=maxLoan(sise,ltv,first);
+  $("lnSiseW").textContent=sise?won(sise):"";
+  $("lnMax").textContent=won(max);
+  const amt=$("lnAmt"); amt.max=max;
+  if(resetAmt||+amt.value>max||+amt.value===0)amt.value=max;
+  const P=+amt.value;
+  $("lnAmtW").textContent=won(P);
+  const pay=monthlyPay(P,+$("lnRate").value||0,+$("lnYears").value||0,LOAN.method);
+  $("lnMonthly").textContent=pay?won(Math.round(pay)):"-";
+  $("lnMethodLbl").textContent=LOAN.method==="원금균등"?"(첫 달)":"";
+}
+
+// ---- 지하철 / GTX ----
+let SUBWAY={stations:[],gtx:[]}, GTX_FLAT=[];
+function haversine(la1,lo1,la2,lo2){const R=6371,r=Math.PI/180,dla=(la2-la1)*r,dlo=(lo2-lo1)*r,
+  a=Math.sin(dla/2)**2+Math.cos(la1*r)*Math.cos(la2*r)*Math.sin(dlo/2)**2;return 2*R*Math.asin(Math.sqrt(a));}
+// 단지(근사 좌표) 기준 가장 가까운 GTX역. 단지 좌표가 구/동 근사라 거리도 근사치.
+function nearestGtx(a){const c=coordFor(a);if(!c||!GTX_FLAT.length)return null;
+  let best=null;for(const s of GTX_FLAT){const d=haversine(c[0],c[1],s.lat,s.lon);if(!best||d<best.d)best={s,d};}
+  return best?{name:best.s.name,line:best.s.line,status:best.s.status,km:Math.round(best.d*10)/10}:null;}
 const SEOUL = new Set(["종로구","중구","용산구","성동구","광진구","동대문구","중랑구","성북구","강북구","도봉구","노원구","은평구","서대문구","마포구","양천구","강서구","구로구","금천구","영등포구","동작구","관악구","서초구","강남구","송파구","강동구"]);
 
 const GU_COORDS={
@@ -87,6 +138,7 @@ function cardHTML(a){
   const newish=a.built_year&&(2026-a.built_year)<=7, age=a.built_year?(2026-a.built_year)+"년차":"-";
   const risk=a.gap_ratio!=null&&a.gap_ratio>0.95;
   const sm=staleMonths(a), stale=(a.recent_count!=null&&a.recent_count<=1)||(sm!=null&&sm>=3);
+  const gx=nearestGtx(a);
   return `<span class="score">점수 ${score(a)}</span>
    <div class="name"><a href="${naverUrl(a)}" target="_blank" rel="noopener" title="네이버페이 부동산에서 '${a.dong} ${a.name}' 매물·시세 검색">${a.name} <span class="ext">↗</span></a><span class="ptag">${a.pyeong}평·${a.area_m2}㎡</span>${a._variants>1?`<span class="vtag">외 ${a._variants-1}개 평형</span>`:""}</div>
    <div class="loc">${a.gu} ${a.dong} · ${a.built_year||"?"}년(${age})</div>
@@ -97,6 +149,7 @@ function cardHTML(a){
    <div class="kv"><span>최근 추세</span><b style="color:${(a.trend_pct||0)>0?'#1E8449':'#C0392B'}">${a.trend_pct!=null?(a.trend_pct>0?"+":"")+a.trend_pct+"%":"-"}</b></div>
    <div class="kv"><span>방/욕실(근사)</span><b>방 ${a.rooms_est||"?"} · 욕실 ${a.baths_est||"?"}</b></div>
    <div class="kv"><span>학교(동 내)</span><b>초 ${a.elem_school_count||0} · 중 ${a.middle_school_count||0} · 고 ${a.high_school_count||0}</b></div>
+   <div class="kv"><span>가까운 GTX</span><b>${gx?`${gx.name} ${gx.km}㎞ <small>(${gx.line}·${gx.status})</small>`:"-"}</b></div>
    <div class="badges">
      ${a.building_type&&a.building_type!=="아파트"?`<span class="badge type">${a.building_type}</span>`:''}
      ${newish?'<span class="badge">신축(7년내)</span>':'<span class="badge no">구축</span>'}
@@ -104,19 +157,40 @@ function cardHTML(a){
      ${(a.trend_pct||0)>0?'<span class="badge">상승세</span>':''}
      ${(a.rooms_est||0)>=3&&(a.baths_est||0)>=2?'<span class="badge">방3·욕2</span>':''}
      ${(a.elem_school_count||0)>=1?'<span class="badge">🏫 초품아</span>':''}
+     ${gx&&gx.km<=2?`<span class="badge">🚄 GTX ${gx.km}㎞</span>`:''}
      ${stale?'<span class="badge no">⚠️시세추정 주의(거래 적음·오래됨)</span>':''}
      ${risk?'<span class="badge no">⚠️깡통위험(전세가율 95%+)</span>':''}
-   </div>`;
+   </div>
+   <button class="loanbtn" data-n="${(a.name||'').replace(/"/g,'')}" data-g="${a.gu}" data-p="${curPrice(a)}">💰 대출 계산기</button>`;
 }
 
 // ---- 지도 ----
-let MAP=null,MARKERS=null;
+let MAP=null,MARKERS=null,SUB_LAYER=null,GTX_LAYER=null;
 function ensureMap(){if(MAP)return;MAP=L.map('map').setView([37.5,127.0],10);L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(MAP);MARKERS=L.layerGroup().addTo(MAP);}
+// 지하철(일반 회색점)·GTX(노선색+점선+역마커) 레이어를 1회 생성
+function buildSubwayLayers(){
+  if(SUB_LAYER||!SUBWAY.stations.length)return;
+  SUB_LAYER=L.layerGroup();
+  SUBWAY.stations.forEach(([la,lo,nm])=>L.circleMarker([la,lo],{radius:2.5,weight:0,fillColor:'#7f8c8d',fillOpacity:.65}).bindTooltip(nm,{direction:'top'}).addTo(SUB_LAYER));
+  GTX_LAYER=L.layerGroup();
+  SUBWAY.gtx.forEach(g=>{
+    L.polyline(g.stations.map(s=>[s.lat,s.lon]),{color:g.color,weight:3,opacity:.75,dashArray:'7 5'}).addTo(GTX_LAYER);
+    g.stations.forEach(s=>L.circleMarker([s.lat,s.lon],{radius:5,weight:1.5,color:'#fff',fillColor:g.color,fillOpacity:1})
+      .bindTooltip(`${s.name} <b>${g.line}</b>·${s.status}`,{direction:'top'}).addTo(GTX_LAYER));
+  });
+}
+function syncSubwayLayers(){
+  if(!MAP)return; buildSubwayLayers();
+  const sub=$("showSubway")&&$("showSubway").checked, gtx=!$("showGtx")||$("showGtx").checked;
+  if(SUB_LAYER){sub?SUB_LAYER.addTo(MAP):MAP.removeLayer(SUB_LAYER);}
+  if(GTX_LAYER){gtx?GTX_LAYER.addTo(MAP):MAP.removeLayer(GTX_LAYER);}
+}
 function renderMap(rows){
-  ensureMap();MARKERS.clearLayers();const pts=[];
+  ensureMap();syncSubwayLayers();MARKERS.clearLayers();const pts=[];
   rows.slice(0,500).forEach(a=>{const c=coordFor(a);if(!c)return;pts.push(c);
+    const gx=nearestGtx(a);
     const m=L.circleMarker(c,{radius:7,color:'#C0392B',fillColor:'#C0392B',fillOpacity:.7,weight:1});
-    m.bindPopup(`<b>${a.name}</b><br>${a.gu} ${a.dong} ${a.built_year||"?"}년<br>추정현재가 ${won(curPrice(a))}${a.last_deal?`(${a.last_deal})`:""} / 전세 ${won(a.jeonse_price_man)}<br>전세가율 ${a.gap_ratio!=null?(a.gap_ratio*100).toFixed(0)+"%":"-"} · 추세 ${a.trend_pct!=null?a.trend_pct+"%":"-"} · 점수 ${score(a)}<br>학교 초${a.elem_school_count||0}·중${a.middle_school_count||0}·고${a.high_school_count||0}<br><a href="${naverUrl(a)}" target="_blank" rel="noopener">네이버페이 부동산 ↗</a>`);
+    m.bindPopup(`<b>${a.name}</b><br>${a.gu} ${a.dong} ${a.built_year||"?"}년<br>추정현재가 ${won(curPrice(a))}${a.last_deal?`(${a.last_deal})`:""} / 전세 ${won(a.jeonse_price_man)}<br>전세가율 ${a.gap_ratio!=null?(a.gap_ratio*100).toFixed(0)+"%":"-"} · 추세 ${a.trend_pct!=null?a.trend_pct+"%":"-"} · 점수 ${score(a)}<br>학교 초${a.elem_school_count||0}·중${a.middle_school_count||0}·고${a.high_school_count||0}${gx?`<br>🚄 가까운 GTX ${gx.name} ${gx.km}㎞ (${gx.line})`:""}<br><a href="${naverUrl(a)}" target="_blank" rel="noopener">네이버페이 부동산 ↗</a>`);
     MARKERS.addLayer(m);});
   setTimeout(()=>{MAP.invalidateSize();if(pts.length)MAP.fitBounds(pts,{padding:[30,30],maxZoom:13});},50);
 }
@@ -186,6 +260,7 @@ function applyPreset(p){
 function saveState(){
   const s={};ALLF.forEach(i=>s[i]=$(i).value);
   s.region=$("regionSel").value;s.gu=$("guSel").value;s.school=$("schoolReq").checked;s.hide=$("hideRisk").checked;s.group=$("groupComplex").checked;s.aptOnly=$("aptOnly").checked;s.sort=$("sortSel").value;
+  s.gtxL=$("showGtx").checked;s.subL=$("showSubway").checked;
   s.w=[$("wGap").value,$("wNew").value,$("wTrend").value,$("wSchool").value];
   try{localStorage.setItem("aptFilters_v3",JSON.stringify(s));}catch(e){}
 }
@@ -195,6 +270,7 @@ function loadState(){
     priceToFields();
     if(s.region!=null)$("regionSel").value=s.region;if(s.gu!=null)$("guSel").value=s.gu;
     $("schoolReq").checked=!!s.school;if(s.hide!=null)$("hideRisk").checked=s.hide;if(s.group!=null)$("groupComplex").checked=s.group;if(s.aptOnly!=null)$("aptOnly").checked=s.aptOnly;if(s.sort)$("sortSel").value=s.sort;
+    if(s.gtxL!=null)$("showGtx").checked=s.gtxL;if(s.subL!=null)$("showSubway").checked=s.subL;
     if(s.w){["wGap","wNew","wTrend","wSchool"].forEach((id,i)=>{$(id).value=s.w[i];syncW();});}
   }catch(e){}
 }
@@ -223,6 +299,13 @@ fetch("data/apartments.json?v="+Date.now(),{cache:"no-store"}).then(r=>r.json())
   setInterval(pollStatus,20000); pollStatus();
 }).catch(e=>{$("summaryText").textContent="데이터 로드 실패: "+e;});
 
+// 지하철/GTX 좌표 로드 → 카드 'GTX 거리' & 지도 레이어. 늦게 와도 재렌더로 반영.
+fetch("data/subway.json?v="+Date.now(),{cache:"no-store"}).then(r=>r.json()).then(s=>{
+  SUBWAY=s; GTX_FLAT=[];
+  (s.gtx||[]).forEach(g=>g.stations.forEach(st=>GTX_FLAT.push({name:st.name,lat:st.lat,lon:st.lon,status:st.status,line:g.line})));
+  if(DATA.length)render();
+}).catch(()=>{});
+
 // 갱신 상태 폴링: 백그라운드 갱신 중이면 표시, 새 데이터 준비되면 새로고침 배너
 function pollStatus(){
   fetch("/status",{cache:"no-store"}).then(r=>r.json()).then(s=>{
@@ -247,5 +330,14 @@ $("apply").onclick=render;$("reset").onclick=()=>applyPreset("reset");$("sortSel
 document.querySelectorAll(".preset").forEach(b=>b.onclick=()=>applyPreset(b.dataset.preset));
 document.querySelectorAll(".mini").forEach(b=>b.onclick=()=>{const a=+b.dataset.area;if(a===59){$("areaMin").value=55;$("areaMax").value=66;}else if(a===84){$("areaMin").value=78;$("areaMax").value=100;}else{$("areaMin").value="";$("areaMax").value="";}render();});
 ["wGap","wNew","wTrend","wSchool"].forEach(id=>$(id).oninput=()=>{syncW();render();});
+$("showGtx").onchange=syncSubwayLayers;$("showSubway").onchange=syncSubwayLayers;
+// 대출 계산기
+$("cards").addEventListener("click",e=>{const b=e.target.closest(".loanbtn");if(b)openLoan(b.dataset.n,b.dataset.g,+b.dataset.p);});
+$("loanClose").onclick=()=>$("loanModal").hidden=true;
+$("loanModal").addEventListener("click",e=>{if(e.target.id==="loanModal")$("loanModal").hidden=true;});
+["lnSise","lnLtv","lnRate","lnYears"].forEach(id=>$(id).oninput=()=>loanRecalc(true));
+$("lnFirst").onchange=()=>loanRecalc(true);
+$("lnAmt").oninput=()=>loanRecalc(false);
+document.querySelectorAll(".segb").forEach(b=>b.onclick=()=>{document.querySelectorAll(".segb").forEach(x=>x.classList.remove("active"));b.classList.add("active");LOAN.method=b.dataset.m;loanRecalc(false);});
 $("viewCards").onclick=()=>showView("cards");$("viewMap").onclick=()=>showView("map");
 if("serviceWorker" in navigator){navigator.serviceWorker.register("sw.js").catch(()=>{});}
