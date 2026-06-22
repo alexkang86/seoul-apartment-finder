@@ -33,6 +33,14 @@
   <button class="preset ghost" data-preset="reset">초기화</button>
 </div>
 
+<!-- 내 위치(집·회사): 거리순 정렬 + 카드 길찾기 링크에 사용 -->
+<section class="places">
+  <div class="pf"><label>🏠 집 주소</label><input type="text" id="homeAddr" placeholder="예: 서울 노원구 상계동 / 상계주공7단지"></div>
+  <div class="pf"><label>🏢 회사 주소</label><input type="text" id="workAddr" placeholder="예: 서울 강남구 테헤란로 152"></div>
+  <button id="savePlaces">📍 좌표 저장</button>
+  <span id="placesMsg" class="placesmsg"></span>
+</section>
+
 <section class="filters">
   <div class="f pricef"><label>추정 현재가</label>
     <div class="prow">
@@ -51,6 +59,9 @@
   <div class="f"><label>방 / 욕실 (최소)</label>
     <div class="row"><input type="number" id="roomsMin" placeholder="방 ≥"><input type="number" id="bathsMin" placeholder="욕실 ≥"></div>
   </div>
+  <div class="f"><label>세대수 (최소)</label>
+    <input type="number" id="hhMin" placeholder="예 300">
+  </div>
   <div class="f"><label>전세가율 범위 (%)</label>
     <div class="row"><input type="number" id="gapMin" placeholder="최소 예 75"><span>~</span><input type="number" id="gapMax" placeholder="상한 예 95"></div>
   </div>
@@ -67,7 +78,7 @@
     <label><input type="checkbox" id="hideRisk" checked> 깡통위험(전세가율 95%+) 숨김</label>
     <label><input type="checkbox" id="aptOnly"> 아파트만(주상복합·오피스텔 제외)</label>
     <label><input type="checkbox" id="showGtx" checked> 🚄 지도에 GTX 노선(미개통·계획 포함)</label>
-    <label><input type="checkbox" id="showSubway"> 🚇 지도에 수도권 전철역 전체</label>
+    <label><input type="checkbox" id="showSubway"> 🚇 지도에 수도권 전철 노선·역</label>
   </div>
   <div class="f"><label>정렬</label>
     <select id="sortSel">
@@ -76,6 +87,8 @@
       <option value="trend">상승세 높은순</option>
       <option value="price">추정 현재가 낮은순</option>
       <option value="year">신축순</option>
+      <option value="home">🏠 집에서 가까운순</option>
+      <option value="work">🏢 회사에서 가까운순</option>
     </select>
   </div>
   <div class="f btns">
@@ -133,6 +146,6 @@
 
 <footer>국토교통부 실거래가 기반 · 개인용 후보 탐색 · 갱신: <code>scripts/pipeline.py --gg</code></footer>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="app.js?v=16"></script>
+<script src="app.js?v=19"></script>
 </body>
 </html>

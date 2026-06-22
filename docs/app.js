@@ -114,6 +114,7 @@ function passFilters(a){
   if(n("areaMax")&&a.area_m2>n("areaMax"))return false;
   if(n("roomsMin")&&(a.rooms_est||0)<n("roomsMin"))return false;
   if(n("bathsMin")&&(a.baths_est||0)<n("bathsMin"))return false;
+  if(n("hhMin")&&!(a.households>=n("hhMin")))return false;
   if(v("gapMin")&&(a.gap_ratio||0)*100<n("gapMin"))return false;
   if(v("gapMax")&&a.gap_ratio!=null&&a.gap_ratio*100>n("gapMax"))return false;
   if(v("trendMin")&&(a.trend_pct==null||a.trend_pct<n("trendMin")))return false;
@@ -125,7 +126,8 @@ function passFilters(a){
   return true;
 }
 function sortRows(rows){
-  const c={score:(a,b)=>score(b)-score(a),gap:(a,b)=>(b.gap_ratio||0)-(a.gap_ratio||0),trend:(a,b)=>(b.trend_pct||-99)-(a.trend_pct||-99),price:(a,b)=>curPrice(a)-curPrice(b),year:(a,b)=>(b.built_year||0)-(a.built_year||0)}[$("sortSel").value];
+  const D=(a,p)=>distTo(a,p)??1e9;
+  const c={score:(a,b)=>score(b)-score(a),gap:(a,b)=>(b.gap_ratio||0)-(a.gap_ratio||0),trend:(a,b)=>(b.trend_pct||-99)-(a.trend_pct||-99),price:(a,b)=>curPrice(a)-curPrice(b),year:(a,b)=>(b.built_year||0)-(a.built_year||0),home:(a,b)=>D(a,PLACES.home)-D(b,PLACES.home),work:(a,b)=>D(a,PLACES.work)-D(b,PLACES.work)}[$("sortSel").value];
   return rows.sort(c);
 }
 // NPay 부동산 직링크: 단지번호(baked)가 있으면 해당 단지 페이지로 직행, 없으면 검색 폴백.
@@ -141,16 +143,50 @@ function kbUrl(a){
   if(a.naver_complex_no) return "https://fin.land.naver.com/complexes/"+a.naver_complex_no;
   return "https://search.naver.com/search.naver?query="+encodeURIComponent((a.dong?a.dong+" ":"")+a.name+" KB시세");
 }
+
+// ---- 내 위치(집·회사) ----
+let PLACES={}; try{PLACES=JSON.parse(localStorage.getItem("aptPlaces"))||{};}catch(e){}
+// 무료 지오코딩(OSM Nominatim). 버튼 클릭 시 1~2건만 호출.
+async function geocode(q){
+  if(!q)return null;
+  try{const r=await fetch("https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=kr&q="+encodeURIComponent(q),{headers:{"Accept-Language":"ko"}});
+    const j=await r.json(); if(j&&j[0])return {lat:+j[0].lat,lng:+j[0].lon,name:q};}catch(e){}
+  return null;
+}
+async function savePlaces(){
+  const msg=$("placesMsg"); msg.textContent="좌표 찾는 중…";
+  const h=$("homeAddr").value.trim(), w=$("workAddr").value.trim();
+  const [hr,wr]=await Promise.all([geocode(h),geocode(w)]);
+  PLACES={}; if(hr)PLACES.home=hr; if(wr)PLACES.work=wr;
+  try{localStorage.setItem("aptPlaces",JSON.stringify(PLACES));}catch(e){}
+  msg.textContent=[h?(hr?"🏠 ✓":"🏠 실패"):"",w?(wr?"🏢 ✓":"🏢 실패"):""].filter(Boolean).join("  ")||"주소를 입력하세요";
+  render();
+}
+// 단지(근사좌표)→집/회사 직선거리(㎞). 단지 좌표가 구/동 근사라 거리도 근사치.
+function distTo(a,p){const c=coordFor(a);if(!c||!p)return null;return haversine(c[0],c[1],p.lat,p.lng);}
+// 네이버 대중교통 길찾기 직링크(실제 소요시간은 네이버에서 확인). 출발=단지 근사좌표, 도착=집/회사.
+function transitUrl(a,p){
+  const c=coordFor(a); if(!c||!p)return "#";
+  const s=`${c[1]},${c[0]},${encodeURIComponent((a.dong?a.dong+" ":"")+a.name)},,`;
+  const e=`${p.lng},${p.lat},${encodeURIComponent(p.name||"목적지")},,`;
+  return `https://map.naver.com/p/directions/${s}/${e}/-/transit`;
+}
 function cardHTML(a){
   const newish=a.built_year&&(2026-a.built_year)<=7, age=a.built_year?(2026-a.built_year)+"년차":"-";
   const risk=a.gap_ratio!=null&&a.gap_ratio>0.95;
   const sm=staleMonths(a), stale=(a.recent_count!=null&&a.recent_count<=1)||(sm!=null&&sm>=3);
   const gx=nearestGtx(a);
+  const dh=distTo(a,PLACES.home), dw=distTo(a,PLACES.work);
+  const r1=x=>x==null?"-":(Math.round(x*10)/10)+"㎞";
   return `<span class="score">점수 ${score(a)}</span>
    <div class="name"><a href="${naverUrl(a)}" target="_blank" rel="noopener" title="네이버페이 부동산에서 '${a.dong} ${a.name}' 매물·시세 검색">${a.name} <span class="ext">↗</span></a><span class="ptag">${a.pyeong}평·${a.area_m2}㎡</span>${a._variants>1?`<span class="vtag">외 ${a._variants-1}개 평형</span>`:""}</div>
    <div class="loc">${a.gu} ${a.dong} · ${a.built_year||"?"}년(${age})</div>
    <div class="kv"><span>추정 현재가</span><b class="price">${won(curPrice(a))}</b></div>
+   <div class="kv"><span>KB시세(추정)</span><b>${won(curPrice(a))} <small>실거래 추정·KB값 아님</small></b></div>
    <div class="kv"><span>최근 거래</span><b>${a.last_deal||"-"}${a.recent_count?` · 최근 ${a.recent_count}건`:""}${a.trade_count?` (총 ${a.trade_count}건)`:""}</b></div>
+   ${a.households?`<div class="kv"><span>세대수</span><b>${a.households.toLocaleString()}세대</b></div>`:""}
+   ${PLACES.home?`<div class="kv"><span>🏠 집까지(직선)</span><b>${r1(dh)}</b></div>`:""}
+   ${PLACES.work?`<div class="kv"><span>🏢 회사까지(직선)</span><b>${r1(dw)}</b></div>`:""}
    <div class="kv"><span>전세가</span><b>${won(a.jeonse_price_man)}</b></div>
    <div class="kv"><span>매매-전세 갭</span><b>${a.gap_man!=null?won(a.gap_man):"-"} ${a.gap_ratio!=null?`(전세가율 ${(a.gap_ratio*100).toFixed(0)}%)`:""}</b></div>
    <div class="kv"><span>최근 추세</span><b style="color:${(a.trend_pct||0)>0?'#1E8449':'#C0392B'}">${a.trend_pct!=null?(a.trend_pct>0?"+":"")+a.trend_pct+"%":"-"}</b></div>
@@ -171,7 +207,10 @@ function cardHTML(a){
    <div class="actions">
      <a class="kbbtn" href="${kbUrl(a)}" target="_blank" rel="noopener" title="앱 가격은 실거래가 기반 추정치입니다. KB시세(매매 일반평균가)는 단지 페이지의 '시세' 섹션에서 확인하세요.">🏦 KB시세 보기</a>
      <button class="loanbtn" data-n="${(a.name||'').replace(/"/g,'')}" data-g="${a.gu}" data-p="${curPrice(a)}">💰 대출 계산기</button>
-   </div>`;
+   </div>
+   ${PLACES.work?`<div class="actions">
+     <a class="dirbtn" href="${transitUrl(a,PLACES.work)}" target="_blank" rel="noopener" title="네이버 대중교통 길찾기(실제 소요시간 확인)">🏢 회사까지 대중교통</a>
+   </div>`:""}`;
 }
 
 // ---- 지도 ----
@@ -181,12 +220,18 @@ function ensureMap(){if(MAP)return;MAP=L.map('map').setView([37.5,127.0],10);L.t
 function buildSubwayLayers(){
   if(SUB_LAYER||!SUBWAY.stations.length)return;
   SUB_LAYER=L.layerGroup();
-  SUBWAY.stations.forEach(([la,lo,nm])=>L.circleMarker([la,lo],{radius:2.5,weight:0,fillColor:'#7f8c8d',fillOpacity:.65}).bindTooltip(nm,{direction:'top'}).addTo(SUB_LAYER));
+  // 노선 실선(호선색, 두껍게) — 가진 노선(1~9·분당·신분당)만, 나머지 역은 점으로 보강
+  (SUBWAY.lines||[]).forEach(l=>L.polyline(l.pts,{color:l.color,weight:4,opacity:.85}).addTo(SUB_LAYER));
+  SUBWAY.stations.forEach(([la,lo,nm])=>L.circleMarker([la,lo],{radius:2.5,weight:0,fillColor:'#555',fillOpacity:.7}).bindTooltip(nm,{direction:'top'}).addTo(SUB_LAYER));
+  // GTX — 운영 구간은 실선, 예정(공사중·계획) 구간은 점선
   GTX_LAYER=L.layerGroup();
   SUBWAY.gtx.forEach(g=>{
-    L.polyline(g.stations.map(s=>[s.lat,s.lon]),{color:g.color,weight:3,opacity:.75,dashArray:'7 5'}).addTo(GTX_LAYER);
-    g.stations.forEach(s=>L.circleMarker([s.lat,s.lon],{radius:5,weight:1.5,color:'#fff',fillColor:g.color,fillOpacity:1})
-      .bindTooltip(`${s.name} <b>${g.line}</b>·${s.status}`,{direction:'top'}).addTo(GTX_LAYER));
+    const s=g.stations;
+    for(let i=0;i<s.length-1;i++){const open=g.segs[i];
+      L.polyline([[s[i].lat,s[i].lon],[s[i+1].lat,s[i+1].lon]],
+        {color:g.color,weight:open?4:3,opacity:.85,dashArray:open?null:'7 6'}).addTo(GTX_LAYER);}
+    s.forEach(st=>L.circleMarker([st.lat,st.lon],{radius:5,weight:1.5,color:'#fff',fillColor:g.color,fillOpacity:1})
+      .bindTooltip(`${st.name} <b>${g.line}</b>·${st.status}`,{direction:'top'}).addTo(GTX_LAYER));
   });
 }
 function syncSubwayLayers(){
@@ -251,7 +296,7 @@ const PRESETS={
  cheapnew:{yearMin:2019,priceMax:50000,sort:"year",hideRisk:true},
  big:{roomsMin:4,bathsMin:2,priceMax:60000,sort:"score",hideRisk:true},
 };
-const ALLF=["priceMin","priceMax","yearMin","yearMax","areaMin","areaMax","roomsMin","bathsMin","gapMin","gapMax","trendMin"];
+const ALLF=["priceMin","priceMax","yearMin","yearMax","areaMin","areaMax","roomsMin","bathsMin","gapMin","gapMax","trendMin","hhMin"];
 function clearAll(){ALLF.forEach(i=>$(i).value="");["priceMinEok","priceMinMan","priceMaxEok","priceMaxMan"].forEach(i=>$(i).value="");$("regionSel").value="";$("guSel").value="";$("schoolReq").checked=false;$("hideRisk").checked=true;$("groupComplex").checked=true;$("aptOnly").checked=false;$("sortSel").value="score";}
 function applyPreset(p){
   clearAll();
@@ -341,6 +386,10 @@ document.querySelectorAll(".preset").forEach(b=>b.onclick=()=>applyPreset(b.data
 document.querySelectorAll(".mini").forEach(b=>b.onclick=()=>{const a=+b.dataset.area;if(a===59){$("areaMin").value=55;$("areaMax").value=66;}else if(a===84){$("areaMin").value=78;$("areaMax").value=100;}else{$("areaMin").value="";$("areaMax").value="";}render();});
 ["wGap","wNew","wTrend","wSchool"].forEach(id=>$(id).oninput=()=>{syncW();render();});
 $("showGtx").onchange=syncSubwayLayers;$("showSubway").onchange=syncSubwayLayers;
+// 내 위치
+if(PLACES.home)$("homeAddr").value=PLACES.home.name||"";
+if(PLACES.work)$("workAddr").value=PLACES.work.name||"";
+$("savePlaces").onclick=savePlaces;
 // 대출 계산기
 $("cards").addEventListener("click",e=>{const b=e.target.closest(".loanbtn");if(b)openLoan(b.dataset.n,b.dataset.g,+b.dataset.p);});
 $("loanClose").onclick=()=>$("loanModal").hidden=true;
