@@ -103,6 +103,8 @@ function score(a){
   return Math.round(100*(W.gap*ng+W.nw*nn+W.tr*nt+W.sc*ns)/tot);
 }
 
+// 초품아: 단지 800m내 초등학교(좌표 산출 단지) — 좌표 미산출 단지는 동 내 초등학교로 폴백
+function isChopumah(a){ return a.elem_800m===true || (a.elem_800m===undefined && (a.elem_school_count||0)>=1); }
 // ---- 필터 ----
 function passFilters(a){
   const v=id=>$(id).value, n=id=>+$(id).value;
@@ -120,7 +122,7 @@ function passFilters(a){
   if(v("gapMin")&&(a.gap_ratio||0)*100<n("gapMin"))return false;
   if(v("gapMax")&&a.gap_ratio!=null&&a.gap_ratio*100>n("gapMax"))return false;
   if(v("trendMin")&&(a.trend_pct==null||a.trend_pct<n("trendMin")))return false;
-  if($("schoolReq").checked&&!((a.elem_school_count||0)>=1))return false;
+  if($("schoolReq").checked&&!isChopumah(a))return false;
   if($("hideRisk").checked&&a.gap_ratio!=null&&a.gap_ratio>0.95)return false;
   if($("aptOnly").checked&&a.building_type&&a.building_type!=="아파트")return false;
   const r=v("regionSel"); if(r){const s=SEOUL.has(a.gu); if(r==="seoul"&&!s)return false; if(r==="gg"&&s)return false;}
@@ -198,7 +200,7 @@ function cardHTML(a){
    <div class="kv"><span>매매-전세 갭</span><b>${a.gap_man!=null?won(a.gap_man):"-"} ${a.gap_ratio!=null?`(전세가율 ${(a.gap_ratio*100).toFixed(0)}%)`:""}</b></div>
    <div class="kv"><span>최근 추세</span><b style="color:${(a.trend_pct||0)>0?'#1E8449':'#C0392B'}">${a.trend_pct!=null?(a.trend_pct>0?"+":"")+a.trend_pct+"%":"-"}</b></div>
    <div class="kv"><span>방/욕실(근사)</span><b>방 ${a.rooms_est||"?"} · 욕실 ${a.baths_est||"?"}</b></div>
-   <div class="kv"><span>학교(동 내)</span><b>초 ${a.elem_school_count||0} · 중 ${a.middle_school_count||0} · 고 ${a.high_school_count||0}</b></div>
+   <div class="kv"><span>학교(동 내)</span><b>초 ${a.elem_school_count||0} · 중 ${a.middle_school_count||0} · 고 ${a.high_school_count||0}${a.elem_near_m!=null?` · 초등 최단 ${a.elem_near_m}m`:""}</b></div>
    <div class="kv"><span>가까운 GTX</span><b>${gx?`${gx.name} ${gx.km}㎞ <small>(${gx.line}·${gx.status})</small>`:"-"}</b></div>
    <div class="badges">
      ${a.building_type&&a.building_type!=="아파트"?`<span class="badge type">${a.building_type}</span>`:''}
@@ -206,7 +208,7 @@ function cardHTML(a){
      ${(a.gap_ratio||0)>=0.8&&!risk?'<span class="badge">갭 작음</span>':''}
      ${(a.trend_pct||0)>0?'<span class="badge">상승세</span>':''}
      ${(a.rooms_est||0)>=3&&(a.baths_est||0)>=2?'<span class="badge">방3·욕2</span>':''}
-     ${(a.elem_school_count||0)>=1?'<span class="badge">🏫 초품아</span>':''}
+     ${isChopumah(a)?`<span class="badge">🏫 초품아${a.elem_800m&&a.elem_near_m!=null?` ${a.elem_near_m}m`:""}</span>`:''}
      ${gx&&gx.km<=2?`<span class="badge">🚄 GTX ${gx.km}㎞</span>`:''}
      ${stale?'<span class="badge no">⚠️시세추정 주의(거래 적음·오래됨)</span>':''}
      ${risk?'<span class="badge no">⚠️깡통위험(전세가율 95%+)</span>':''}

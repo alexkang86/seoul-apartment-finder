@@ -12,10 +12,12 @@ fi
 
 python3 scripts/pipeline.py --gg --months 6 || { echo "pipeline 실패"; exit 1; }
 python3 scripts/enrich_schools.py || { echo "enrich 실패"; exit 1; }
-python3 scripts/enrich_households.py || echo "세대수 보강 건너뜀(CSV 없음/openpyxl 미설치)"
+python3 scripts/enrich_households.py || echo "세대수/용적률 보강 건너뜀(CSV 없음/openpyxl 미설치)"
+python3 scripts/enrich_far.py        || echo "용적률 보강 건너뜀(건축물대장 키 없음)"
+python3 scripts/enrich_chopumah.py   || echo "초품아 보강 건너뜀(카카오 키 없음)"
 RESOLVE_LIMIT=3000 RESOLVE_DELAY=0.2 python3 scripts/resolve_complexno.py || true
 
-git add docs/data/apartments.json data/complexno_cache.json
+git add docs/data/apartments.json data/complexno_cache.json data/far_cache.json data/geo_cache.json
 if git diff --cached --quiet; then
   echo "변경 없음 → 커밋 생략"
 else
